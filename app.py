@@ -157,7 +157,7 @@ def get_soccer_ball_svg():
 
 # ── Standings Calculator ──────────────────────────────────────────────────────
 def compute_standings(phase_filter=None):
-    """Calculate league standings"""
+    """Calculate league standings - simplified columns"""
     teams = st.session_state.teams
     games = st.session_state.games
     
@@ -165,11 +165,7 @@ def compute_standings(phase_filter=None):
         games = [g for g in games if g.get("phase") == phase_filter]
     
     stats = {
-        name: {
-            "P": 0, "W": 0, "D": 0, "L": 0,
-            "GF": 0, "GA": 0, "GD": 0, "Pts": 0,
-            "Form": []
-        }
+        name: {"W": 0, "L": 0, "GF": 0, "GA": 0}
         for name in teams
     }
     
@@ -180,50 +176,38 @@ def compute_standings(phase_filter=None):
         if h not in stats or a not in stats:
             continue
             
-        for team, scored, conceded in [(h, hs, as_), (a, as_, hs)]:
-            stats[team]["P"] += 1
-            stats[team]["GF"] += scored
-            stats[team]["GA"] += conceded
-            
-            if scored > conceded:
-                stats[team]["W"] += 1
-                stats[team]["Pts"] += 3
-                stats[team]["Form"].append("W")
-            elif scored == conceded:
-                stats[team]["D"] += 1
-                stats[team]["Pts"] += 1
-                stats[team]["Form"].append("D")
-            else:
-                stats[team]["L"] += 1
-                stats[team]["Form"].append("L")
-    
-    for team in stats:
-        stats[team]["GD"] = stats[team]["GF"] - stats[team]["GA"]
+        # Home team
+        stats[h]["GF"] += hs
+        stats[h]["GA"] += as_
+        if hs > as_:
+            stats[h]["W"] += 1
+        else:
+            stats[h]["L"] += 1
+        
+        # Away team
+        stats[a]["GF"] += as_
+        stats[a]["GA"] += hs
+        if as_ > hs:
+            stats[a]["W"] += 1
+        else:
+            stats[a]["L"] += 1
     
     rows = []
     for name, s in stats.items():
-        form_str = "".join([
-            '<span class="form-w">W</span>' if r == "W" else '<span class="form-l">L</span>'
-            for r in s["Form"][-5:]
-        ])
         rows.append({
             "Team": name,
-            "P": s["P"],
             "W": s["W"],
-            "D": s["D"],
             "L": s["L"],
             "GF": s["GF"],
             "GA": s["GA"],
-            "GD": s["GD"],
-            "Pts": s["Pts"],
-            "Form": form_str,
         })
     
     df = pd.DataFrame(rows)
     if not df.empty:
-        df = df.sort_values(["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
-        df.index += 1
-        df.index.name = "Pos"
+        # Sort by wins (desc), then goal diff (desc)
+        df['GD'] = df['GF'] - df['GA']
+        df = df.sort_values(["W", "GD", "GF"], ascending=False).reset_index(drop=True)
+        df = df.drop('GD', axis=1)  # Remove temp column
     
     return df
 
@@ -312,104 +296,17 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
-    .league-table {
+    /* Streamlit dataframe styling */
+    .stDataFrame {
         width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        background: white;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     
-    .league-table thead {
-        background: #0a0a0a;
-        color: white;
+    .stDataFrame > div {
+        width: 100% !important;
     }
     
-    .league-table th {
-        padding: 1.2rem 1rem;
-        text-align: center;
-        font-weight: 700;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    .league-table th:first-child {
-        text-align: left;
-        padding-left: 2rem;
-    }
-    
-    .league-table td {
-        padding: 1.2rem 1rem;
-        text-align: center;
-        border-bottom: 1px solid #f5f5f5;
-        font-weight: 500;
-        font-size: 0.95rem;
-    }
-    
-    .league-table td:first-child {
-        text-align: left;
-        padding-left: 2rem;
-        font-weight: 600;
-        font-size: 1rem;
-    }
-    
-    .league-table tbody tr:hover {
-        background: #fafafa;
-    }
-    
-    .league-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-    
-    .pos {
-        display: inline-block;
-        width: 32px;
-        height: 32px;
-        line-height: 32px;
-        text-align: center;
-        font-weight: 700;
-        font-size: 0.85rem;
-        margin-right: 1rem;
-        border-radius: 6px;
-    }
-    
-    .pos-1 { background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; }
-    .pos-2 { background: linear-gradient(135deg, #C0C0C0, #808080); color: #000; }
-    .pos-3 { background: linear-gradient(135deg, #CD7F32, #8B4513); color: #fff; }
-    .pos-top4 { background: linear-gradient(135deg, #00ff87, #60efff); color: #0a0a0a; }
-    .pos-bottom { background: linear-gradient(135deg, #ff4458, #ff0033); color: white; }
-    .pos-normal { background: #f0f0f0; color: #333; }
-    
-    .team-logo {
-        width: 32px;
-        height: 32px;
-        vertical-align: middle;
-        margin-right: 1rem;
-    }
-    
-    .form-w, .form-l {
-        display: inline-block;
-        width: 28px;
-        height: 28px;
-        line-height: 28px;
-        text-align: center;
-        font-weight: 700;
-        font-size: 0.75rem;
-        margin: 0 3px;
-        border-radius: 6px;
-    }
-    
-    .form-w {
-        background: linear-gradient(135deg, #00ff87, #00d96e);
-        color: #0a0a0a;
-    }
-    
-    .form-l {
-        background: linear-gradient(135deg, #ff4458, #ff0033);
-        color: white;
+    .stDataFrame [data-testid="stDataFrameResizable"] {
+        width: 100% !important;
     }
     
     .record-card {
@@ -634,73 +531,19 @@ with tab1:
     if df.empty:
         st.info("No matches recorded yet. Record your first match to see the table.")
     else:
-        rows_html = ""
-        for pos, row in df.iterrows():
-            if pos == 1:
-                pos_class = "pos-1"
-            elif pos == 2:
-                pos_class = "pos-2"
-            elif pos == 3:
-                pos_class = "pos-3"
-            elif pos <= 4:
-                pos_class = "pos-top4"
-            elif pos == len(df):
-                pos_class = "pos-bottom"
-            else:
-                pos_class = "pos-normal"
-            
-            logo = get_soccer_ball_svg()
-            
-            rows_html += f"""
-            <tr>
-                <td>
-                    <span class="pos {pos_class}">{pos}</span>
-                    <img src="{logo}" class="team-logo">
-                    {row["Team"]}
-                </td>
-                <td>{row["P"]}</td>
-                <td>{row["W"]}</td>
-                <td>{row["D"]}</td>
-                <td>{row["L"]}</td>
-                <td>{row["GF"]}</td>
-                <td>{row["GA"]}</td>
-                <td><strong>{row["GD"]:+d}</strong></td>
-                <td><strong>{row["Pts"]}</strong></td>
-                <td>{row["Form"]}</td>
-            </tr>
-            """
-        
-        st.markdown(f"""
-        <table class="league-table">
-            <thead>
-                <tr>
-                    <th>Club</th>
-                    <th>P</th>
-                    <th>W</th>
-                    <th>D</th>
-                    <th>L</th>
-                    <th>GF</th>
-                    <th>GA</th>
-                    <th>GD</th>
-                    <th>Pts</th>
-                    <th>Form</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows_html}
-            </tbody>
-        </table>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.caption("🥇 Champion Position")
-        with col2:
-            st.caption("🟢 Top 4 (World Cup Qualification)")
-        with col3:
-            st.caption("🔴 Last Place (Hat of Shame)")
+        # Display using Streamlit's dataframe with custom config
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Team": st.column_config.TextColumn("Team", width="large"),
+                "W": st.column_config.NumberColumn("Wins", width="small"),
+                "L": st.column_config.NumberColumn("Losses", width="small"),
+                "GF": st.column_config.NumberColumn("Goals For", width="small"),
+                "GA": st.column_config.NumberColumn("Goals Against", width="small"),
+            }
+        )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — RECORD RESULT
@@ -986,8 +829,6 @@ with tab7:
         st.markdown(f"""
         <div style="padding: 1rem; background: white; margin-bottom: 0.5rem; 
                     border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <img src="{get_soccer_ball_svg()}" style="width: 28px; height: 28px; 
-                 vertical-align: middle; margin-right: 1rem;">
             <strong>{member}</strong>
             <span style="color: #666; margin-left: 1rem; font-size: 0.85rem;">Founding Member</span>
         </div>
