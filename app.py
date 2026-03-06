@@ -20,11 +20,10 @@ st.set_page_config(
 DATA_DIR = "spbl_data"
 TEAMS_FILE = os.path.join(DATA_DIR, "teams.json")
 GAMES_FILE = os.path.join(DATA_DIR, "games.json")
-LOGOS_DIR = os.path.join(DATA_DIR, "logos")
+COASTER_FILE = os.path.join(DATA_DIR, "coaster_cups.json")
 
 def ensure_dirs():
     os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(LOGOS_DIR, exist_ok=True)
 
 def load_json(path, default):
     if os.path.exists(path):
@@ -44,6 +43,66 @@ FOUNDING_MEMBERS = [
     "Adam", "Dope", "Rick", "Doug"
 ]
 
+LEAGUE_CHARTER = """
+**Article I – Establishment**
+
+The Slayer Park Binho League (SPBL) is hereby established as a competitive, organized Binho league founded on principles of being a Big Dirty. The SPBL shall operate under this Charter for all league matches, standings, and championship determinations.
+
+**Article II – Founding Members**
+
+The founding members are: Skullcore, Baby, Sam, Luken, Adam, Dope, Rick, and Doug.
+
+**Article III – League Structure**
+
+*Section 1 – Seasonal Format*
+
+Each SPBL season shall be divided into two equal competitive phases: the Apertura (Opening Phase) and the Clausura (Closing Phase). Each Phase will last 5 months. Each phase will consist of scheduled league matches.
+
+*Section 2 – Match Schedule*
+
+Each competitor will play four (4) matches against every other competitor: two (2) home matches and two (2) away matches. With eight (8) competitors, each player has seven (7) opponents, resulting in twenty-eight (28) total league matches per competitor. Each phase will have 14 games total across the 5 month duration.
+
+**Article IV – Match Regulations**
+
+*Section 1 – Match Announcement*
+
+A league match must be announced prior to kickoff to each other and at least one other league member. Failure to declare a match as an official league match before kickoff renders it ineligible for league standings.
+
+*Section 2 – Home Team Privileges*
+
+For all officially declared league matches, the Home Team shall have the right to select the Binho board and select the ball. Home and away designation shall follow the official schedule.
+
+*Section 3 – Recording Results*
+
+Final scores must be recorded immediately upon match completion and must include: winner, loser, final score, and goal differential. The League shall maintain official standings tracking wins, losses, and goal differential.
+
+**Article V – Standings and Tiebreakers**
+
+Standings shall be determined first by overall record (wins–losses). The first tiebreaker shall be goal differential. If overall record and goal differential do not resolve a league winner, the tied competitors shall compete in a best-of-three (3) playoff series. The winner of this playoff shall be declared the official phase champion. The last place team in each phase will be awarded a hat which they must wear to the following phase of play or face a fine of $10 dollars to the league coffers to be used for the end of the season celebration OR purchase of the one true big dirty cup.
+
+**Article VI – Phase Champions (Slayer Park Cup)**
+
+The competitor finishing first in the Apertura shall be crowned Apertura Champion. The competitor finishing first in the Clausura shall be crowned Clausura Champion. The best record across both will receive the Slayer Park Cup.
+
+**Article VII – Year-End Binho Cup (Big Dirty Cup)**
+
+At the conclusion of both league phases, a postseason tournament known as the Slayer Park Binho World Cup shall be held. The Apertura Champion and Clausura Champion shall each receive automatic byes into later rounds of the Binho Cup. If the same competitor wins both phases, bye allocation shall be determined by the winner of most monthly cups.
+
+A 3 team, 2 group knockout phase will start the tournament with a double elimination format. Game cadence will be determined by league standings. Based on overall standings across both league phases the third-place team gets the 8th and 6th place teams, and the 4th place team will be placed with the 5th and 7th place teams.
+
+**Article VIII – Coaster Cups**
+
+In addition to league play, a tournament will take place each month between all competitors for a coaster cup. The coaster cup is the best of three knockout tournaments between all teams available that evening. The coaster cup wins will be aggregated at the end of the year with any tiebreakers being determined by a single elimination game. Seeding will be determined by random number draw prior to the start of the cup. A number between 1 and 10 will be drawn for each competitor with the highest and lowest numbers paired first and so on and so forth until all teams have been paired. The winner of the most coaster cups over the course of the year will earn one beverage of their choice from every other founding member to be delivered within 2 months of the competition's conclusion.
+
+**Article IX – The One True Big Dirty**
+
+If a member wins both the Slayer Park Cup and the Big Dirty Cup, they will be crowned the One True Big Dirty until another member repeats the feat. A Trophy shall be presented to the One True Big Dirty upon completion of this feat.
+
+**Article X – Governance**
+
+Any amendments to this Charter require approval by a majority (5 of 8) vote of the founding members. Disputes shall be resolved by majority vote of non-involved members. The spirit of the league shall prioritize competition, sportsmanship, and recorded history.
+"""
+
 def initialize_league():
     """Initialize the league with the 8 founding members"""
     if not os.path.exists(TEAMS_FILE) or not load_json(TEAMS_FILE, {}):
@@ -62,12 +121,15 @@ if "teams" not in st.session_state:
     st.session_state.teams = initialize_league()
 if "games" not in st.session_state:
     st.session_state.games = load_json(GAMES_FILE, [])
+if "coaster_cups" not in st.session_state:
+    st.session_state.coaster_cups = load_json(COASTER_FILE, [])
 if "current_phase" not in st.session_state:
     st.session_state.current_phase = "Apertura"
 
 def save_state():
     save_json(TEAMS_FILE, st.session_state.teams)
     save_json(GAMES_FILE, st.session_state.games)
+    save_json(COASTER_FILE, st.session_state.coaster_cups)
 
 # ── Logo Management ───────────────────────────────────────────────────────────
 def get_soccer_ball_svg():
@@ -95,11 +157,10 @@ def get_soccer_ball_svg():
 
 # ── Standings Calculator ──────────────────────────────────────────────────────
 def compute_standings(phase_filter=None):
-    """Calculate league standings with Premier League rules"""
+    """Calculate league standings"""
     teams = st.session_state.teams
     games = st.session_state.games
     
-    # Filter by phase if specified
     if phase_filter:
         games = [g for g in games if g.get("phase") == phase_filter]
     
@@ -119,29 +180,26 @@ def compute_standings(phase_filter=None):
         if h not in stats or a not in stats:
             continue
             
-        # Update stats for both teams
         for team, scored, conceded in [(h, hs, as_), (a, as_, hs)]:
             stats[team]["P"] += 1
             stats[team]["GF"] += scored
             stats[team]["GA"] += conceded
             
-            if scored > conceded:  # Win
+            if scored > conceded:
                 stats[team]["W"] += 1
                 stats[team]["Pts"] += 3
                 stats[team]["Form"].append("W")
-            elif scored == conceded:  # Draw
+            elif scored == conceded:
                 stats[team]["D"] += 1
                 stats[team]["Pts"] += 1
                 stats[team]["Form"].append("D")
-            else:  # Loss
+            else:
                 stats[team]["L"] += 1
                 stats[team]["Form"].append("L")
     
-    # Calculate goal difference
     for team in stats:
         stats[team]["GD"] = stats[team]["GF"] - stats[team]["GA"]
     
-    # Build DataFrame
     rows = []
     for name, s in stats.items():
         form_str = "".join([
@@ -163,287 +221,396 @@ def compute_standings(phase_filter=None):
     
     df = pd.DataFrame(rows)
     if not df.empty:
-        # Sort by: Points desc, Goal Difference desc, Goals For desc
         df = df.sort_values(["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
         df.index += 1
         df.index.name = "Pos"
     
     return df
 
-# ── Premier League CSS Styling ────────────────────────────────────────────────
+# ── Modern Minimalist CSS ─────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Global */
-    @import url('https://fonts.googleapis.com/css2?family=Encode+Sans:wght@400;600;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
     * {
-        font-family: 'Encode Sans', -apple-system, sans-serif;
+        font-family: 'Inter', -apple-system, sans-serif;
     }
     
     .block-container {
-        padding: 1.5rem 2rem 3rem 2rem;
-        max-width: 1200px;
+        padding: 2rem 3rem;
+        max-width: 1400px;
     }
     
     /* Header */
     .spbl-header {
-        background: linear-gradient(135deg, #38003c 0%, #2b0030 100%);
-        border-radius: 0;
-        padding: 2rem 2.5rem;
-        margin: -1.5rem -2rem 2rem -2rem;
+        background: #0a0a0a;
+        border-radius: 16px;
+        padding: 3rem 3rem 2.5rem 3rem;
+        margin: -2rem -3rem 3rem -3rem;
         color: white;
-        border-bottom: 4px solid #00ff85;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .spbl-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #00ff87, #60efff);
     }
     
     .spbl-header h1 {
-        font-size: 2.5rem;
-        font-weight: 900;
+        font-size: 2.8rem;
+        font-weight: 800;
         margin: 0;
-        letter-spacing: -0.5px;
-        text-transform: uppercase;
+        letter-spacing: -1.5px;
     }
     
     .spbl-header .subtitle {
-        font-size: 1rem;
-        margin: 0.5rem 0 0 0;
-        opacity: 0.85;
+        font-size: 1.1rem;
+        margin: 0.75rem 0 0 0;
+        opacity: 0.6;
         font-weight: 400;
+        letter-spacing: 0.3px;
     }
     
     .phase-badge {
         display: inline-block;
-        background: #00ff85;
-        color: #38003c;
-        padding: 0.3rem 0.8rem;
-        border-radius: 4px;
+        background: linear-gradient(135deg, #00ff87, #60efff);
+        color: #0a0a0a;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
         font-weight: 700;
         font-size: 0.85rem;
         margin-left: 1rem;
+        letter-spacing: 0.5px;
     }
     
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 0;
-        background: #f7f7f7;
-        border-bottom: 2px solid #ddd;
-        padding: 0;
+        gap: 0.5rem;
+        background: transparent;
+        border: none;
+        padding: 0 0 1.5rem 0;
     }
     
     .stTabs [data-baseweb="tab"] {
-        border-radius: 0;
-        font-weight: 700;
-        font-size: 0.9rem;
-        padding: 1rem 1.5rem;
-        background: transparent;
-        color: #555;
-        border-bottom: 3px solid transparent;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0.8rem 1.5rem;
+        background: #f5f5f5;
+        color: #666;
+        border: none;
+        transition: all 0.2s;
     }
     
     .stTabs [aria-selected="true"] {
-        background: white !important;
-        color: #38003c !important;
-        border-bottom: 3px solid #00ff85 !important;
+        background: #0a0a0a !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     /* League Table */
     .league-table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         background: white;
-        font-size: 0.95rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     
     .league-table thead {
-        background: #38003c;
+        background: #0a0a0a;
         color: white;
     }
     
     .league-table th {
-        padding: 1rem 0.75rem;
+        padding: 1.2rem 1rem;
         text-align: center;
         font-weight: 700;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
     }
     
     .league-table th:first-child {
         text-align: left;
-        padding-left: 1.5rem;
+        padding-left: 2rem;
     }
     
     .league-table td {
-        padding: 1rem 0.75rem;
+        padding: 1.2rem 1rem;
         text-align: center;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f5f5f5;
         font-weight: 500;
+        font-size: 0.95rem;
     }
     
     .league-table td:first-child {
         text-align: left;
-        padding-left: 1.5rem;
+        padding-left: 2rem;
         font-weight: 600;
+        font-size: 1rem;
     }
     
     .league-table tbody tr:hover {
         background: #fafafa;
     }
     
+    .league-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
     /* Position badges */
     .pos {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        margin-right: 1rem;
+        border-radius: 6px;
+    }
+    
+    .pos-1 { background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; }
+    .pos-2 { background: linear-gradient(135deg, #C0C0C0, #808080); color: #000; }
+    .pos-3 { background: linear-gradient(135deg, #CD7F32, #8B4513); color: #fff; }
+    .pos-top4 { background: linear-gradient(135deg, #00ff87, #60efff); color: #0a0a0a; }
+    .pos-bottom { background: linear-gradient(135deg, #ff4458, #ff0033); color: white; }
+    .pos-normal { background: #f0f0f0; color: #333; }
+    
+    .team-logo {
+        width: 32px;
+        height: 32px;
+        vertical-align: middle;
+        margin-right: 1rem;
+    }
+    
+    /* Form indicators */
+    .form-w, .form-l {
         display: inline-block;
         width: 28px;
         height: 28px;
         line-height: 28px;
         text-align: center;
         font-weight: 700;
-        font-size: 0.85rem;
-        margin-right: 0.75rem;
-        border-radius: 2px;
-    }
-    
-    .pos-1 { background: #FFD700; color: #000; }
-    .pos-2 { background: #C0C0C0; color: #000; }
-    .pos-3 { background: #CD7F32; color: #fff; }
-    .pos-top4 { background: #00ff85; color: #38003c; }
-    .pos-bottom { background: #ff4458; color: white; }
-    .pos-normal { background: #f0f0f0; color: #333; }
-    
-    /* Team logo */
-    .team-logo {
-        width: 28px;
-        height: 28px;
-        vertical-align: middle;
-        margin-right: 0.75rem;
-    }
-    
-    /* Form indicators */
-    .form-w {
-        display: inline-block;
-        width: 24px;
-        height: 24px;
-        line-height: 24px;
-        text-align: center;
-        background: #00ff85;
-        color: #38003c;
-        font-weight: 700;
         font-size: 0.75rem;
-        margin: 0 2px;
-        border-radius: 2px;
+        margin: 0 3px;
+        border-radius: 6px;
+    }
+    
+    .form-w {
+        background: linear-gradient(135deg, #00ff87, #00d96e);
+        color: #0a0a0a;
     }
     
     .form-l {
-        display: inline-block;
-        width: 24px;
-        height: 24px;
-        line-height: 24px;
-        text-align: center;
-        background: #ff4458;
+        background: linear-gradient(135deg, #ff4458, #ff0033);
         color: white;
-        font-weight: 700;
+    }
+    
+    /* Record Match Card */
+    .record-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    .vs-divider {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #e0e0e0;
+        margin: 1rem 0;
+        letter-spacing: 2px;
+    }
+    
+    .score-input-label {
         font-size: 0.75rem;
-        margin: 0 2px;
-        border-radius: 2px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #999;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
     }
     
     /* Match Cards */
     .match-card {
         background: white;
-        border-left: 4px solid #38003c;
-        padding: 1.25rem 1.5rem;
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
         margin-bottom: 1rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         display: grid;
         grid-template-columns: 1fr auto 1fr;
         align-items: center;
-        gap: 1.5rem;
+        gap: 2rem;
+        transition: all 0.2s;
+    }
+    
+    .match-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        transform: translateY(-2px);
     }
     
     .match-card .team {
         font-weight: 600;
-        font-size: 1rem;
+        font-size: 1.05rem;
     }
     
     .match-card .home { text-align: right; }
     .match-card .away { text-align: left; }
     
     .match-card .score {
-        background: #38003c;
+        background: #0a0a0a;
         color: white;
-        font-weight: 900;
-        font-size: 1.5rem;
-        padding: 0.5rem 1.25rem;
-        border-radius: 4px;
-        min-width: 90px;
+        font-weight: 800;
+        font-size: 1.6rem;
+        padding: 0.6rem 1.5rem;
+        border-radius: 10px;
+        min-width: 100px;
         text-align: center;
-        letter-spacing: 2px;
+        letter-spacing: 3px;
     }
     
     .match-card .winner {
-        color: #38003c;
+        color: #00ff87;
+        font-weight: 700;
     }
     
     .match-date {
         font-size: 0.8rem;
         color: #999;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
     }
     
     /* Stats Cards */
     .stat-card {
         background: white;
-        border-radius: 4px;
-        padding: 1.5rem;
+        border-radius: 12px;
+        padding: 2rem 1.5rem;
         text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        border-top: 3px solid #00ff85;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        transition: all 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     }
     
     .stat-card .value {
-        font-size: 2.5rem;
-        font-weight: 900;
-        color: #38003c;
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #00ff87, #60efff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         line-height: 1;
     }
     
     .stat-card .label {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         color: #666;
-        margin-top: 0.5rem;
+        margin-top: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
         font-weight: 600;
     }
     
     /* Buttons */
     .stButton > button {
-        background: #38003c;
+        background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
         color: white;
         border: none;
-        padding: 0.75rem 1.5rem;
+        padding: 1rem 2rem;
         font-weight: 700;
-        border-radius: 4px;
+        border-radius: 10px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
         font-size: 0.9rem;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     .stButton > button:hover {
-        background: #2b0030;
+        background: linear-gradient(135deg, #00ff87, #60efff);
+        color: #0a0a0a;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,255,135,0.3);
     }
     
     /* Section Headers */
     h3 {
-        color: #38003c;
-        font-weight: 900;
-        font-size: 1.5rem;
-        margin-bottom: 1.5rem;
-        text-transform: uppercase;
-        letter-spacing: -0.5px;
+        color: #0a0a0a;
+        font-weight: 800;
+        font-size: 1.8rem;
+        margin-bottom: 2rem;
+        letter-spacing: -1px;
+    }
+    
+    /* Coaster Cup Card */
+    .coaster-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-left: 4px solid;
+    }
+    
+    .coaster-card.winner {
+        border-left-color: #00ff87;
+        background: linear-gradient(90deg, rgba(0,255,135,0.05), white);
+    }
+    
+    .coaster-card h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+    
+    .coaster-card .location {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+    
+    /* Charter styling */
+    .charter-content {
+        background: white;
+        border-radius: 12px;
+        padding: 3rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        line-height: 1.8;
+    }
+    
+    .charter-content h2 {
+        color: #0a0a0a;
+        font-weight: 800;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .charter-content h3 {
+        color: #333;
+        font-weight: 700;
+        font-size: 1.2rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -460,12 +627,14 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Navigation ────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "League Table",
     "Record Result",
     "Fixtures & Results",
     "Team Stats",
-    "League Management"
+    "Coaster Cups",
+    "League Charter",
+    "Settings"
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -474,310 +643,4 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 with tab1:
     col1, col2 = st.columns([3, 1])
     
-    with col1:
-        st.markdown("### Current Standings")
-    
-    with col2:
-        view_phase = st.selectbox(
-            "View Phase",
-            ["Overall", "Apertura", "Clausura"],
-            label_visibility="collapsed"
-        )
-    
-    # Calculate standings
-    if view_phase == "Overall":
-        df = compute_standings()
-    else:
-        df = compute_standings(phase_filter=view_phase)
-    
-    if df.empty:
-        st.info("No matches recorded yet. Record your first match to see the table.")
-    else:
-        # Build HTML table
-        rows_html = ""
-        for pos, row in df.iterrows():
-            # Position badge styling
-            if pos == 1:
-                pos_class = "pos-1"
-            elif pos == 2:
-                pos_class = "pos-2"
-            elif pos == 3:
-                pos_class = "pos-3"
-            elif pos <= 4:
-                pos_class = "pos-top4"
-            elif pos == len(df):
-                pos_class = "pos-bottom"
-            else:
-                pos_class = "pos-normal"
-            
-            logo = get_soccer_ball_svg()
-            
-            rows_html += f"""
-            <tr>
-                <td>
-                    <span class="pos {pos_class}">{pos}</span>
-                    <img src="{logo}" class="team-logo">
-                    {row["Team"]}
-                </td>
-                <td>{row["P"]}</td>
-                <td>{row["W"]}</td>
-                <td>{row["D"]}</td>
-                <td>{row["L"]}</td>
-                <td>{row["GF"]}</td>
-                <td>{row["GA"]}</td>
-                <td><strong>{row["GD"]:+d}</strong></td>
-                <td><strong>{row["Pts"]}</strong></td>
-                <td>{row["Form"]}</td>
-            </tr>
-            """
-        
-        st.markdown(f"""
-        <table class="league-table">
-            <thead>
-                <tr>
-                    <th>Club</th>
-                    <th>P</th>
-                    <th>W</th>
-                    <th>D</th>
-                    <th>L</th>
-                    <th>GF</th>
-                    <th>GA</th>
-                    <th>GD</th>
-                    <th>Pts</th>
-                    <th>Form</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows_html}
-            </tbody>
-        </table>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Legend
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.caption("🥇 Champion Position")
-        with col2:
-            st.caption("🟢 Top 4 (World Cup Qualification)")
-        with col3:
-            st.caption("🔴 Last Place (Hat of Shame)")
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — RECORD RESULT
-# ══════════════════════════════════════════════════════════════════════════════
-with tab2:
-    st.markdown("### Record Match Result")
-    
-    teams = list(st.session_state.teams.keys())
-    
-    if len(teams) < 2:
-        st.warning("Insufficient teams in the league.")
-    else:
-        with st.form("record_match"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**Home Team**")
-                home_team = st.selectbox("Home", teams, label_visibility="collapsed")
-                home_score = st.number_input("Home Score", 0, 7, 7, key="home_score")
-            
-            with col2:
-                st.markdown("**Away Team**")
-                away_team = st.selectbox("Away", [t for t in teams if t != home_team], label_visibility="collapsed")
-                away_score = st.number_input("Away Score", 0, 7, 0, key="away_score")
-            
-            col3, col4 = st.columns(2)
-            with col3:
-                match_date = st.date_input("Match Date", value=datetime.today())
-            with col4:
-                phase = st.selectbox("Phase", ["Apertura", "Clausura"])
-            
-            submit = st.form_submit_button("Record Match", use_container_width=True)
-            
-            if submit:
-                if home_score == away_score:
-                    st.error("Binho matches cannot end in a draw. One team must reach 7.")
-                elif home_score != 7 and away_score != 7:
-                    st.error("Match must be played to 7 points.")
-                elif home_team == away_team:
-                    st.error("Home and away teams must be different.")
-                else:
-                    match = {
-                        "id": len(st.session_state.games) + 1,
-                        "home": home_team,
-                        "away": away_team,
-                        "home_score": int(home_score),
-                        "away_score": int(away_score),
-                        "date": str(match_date),
-                        "phase": phase
-                    }
-                    st.session_state.games.append(match)
-                    save_state()
-                    
-                    winner = home_team if home_score > away_score else away_team
-                    st.success(f"✓ Match recorded: **{winner}** wins {home_score}–{away_score}")
-                    st.rerun()
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — FIXTURES & RESULTS
-# ══════════════════════════════════════════════════════════════════════════════
-with tab3:
-    st.markdown("### Match Results")
-    
-    filter_phase = st.selectbox("Filter by Phase", ["All Matches", "Apertura", "Clausura"])
-    
-    games = st.session_state.games
-    if filter_phase != "All Matches":
-        games = [g for g in games if g.get("phase") == filter_phase]
-    
-    if not games:
-        st.info("No matches recorded yet.")
-    else:
-        for g in reversed(games):
-            winner = g["home"] if g["home_score"] > g["away_score"] else g["away"]
-            
-            home_class = "winner" if g["home"] == winner else ""
-            away_class = "winner" if g["away"] == winner else ""
-            
-            st.markdown(f"""
-            <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
-            <div class="match-card">
-                <div class="team home {home_class}">{g["home"]}</div>
-                <div class="score">{g["home_score"]} – {g["away_score"]}</div>
-                <div class="team away {away_class}">{g["away"]}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — TEAM STATS
-# ══════════════════════════════════════════════════════════════════════════════
-with tab4:
-    st.markdown("### Team Statistics")
-    
-    teams = st.session_state.teams
-    if not teams:
-        st.info("No teams in the league.")
-    else:
-        selected = st.selectbox("Select Team", list(teams.keys()))
-        
-        if selected:
-            # Calculate team stats
-            team_games = [g for g in st.session_state.games 
-                         if g["home"] == selected or g["away"] == selected]
-            
-            wins = sum(1 for g in team_games if 
-                      (g["home"] == selected and g["home_score"] > g["away_score"]) or
-                      (g["away"] == selected and g["away_score"] > g["home_score"]))
-            
-            losses = len(team_games) - wins
-            
-            gf = sum(g["home_score"] if g["home"] == selected else g["away_score"] 
-                    for g in team_games)
-            ga = sum(g["away_score"] if g["home"] == selected else g["home_score"] 
-                    for g in team_games)
-            
-            win_pct = round(wins / len(team_games) * 100) if team_games else 0
-            
-            # Display stats
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="value">{len(team_games)}</div>
-                    <div class="label">Played</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="value">{wins}</div>
-                    <div class="label">Wins</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="value">{gf}</div>
-                    <div class="label">Goals For</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <div class="value">{win_pct}%</div>
-                    <div class="label">Win Rate</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            if team_games:
-                st.markdown("#### Recent Results")
-                for g in reversed(team_games[-5:]):
-                    opp = g["away"] if g["home"] == selected else g["home"]
-                    ts = g["home_score"] if g["home"] == selected else g["away_score"]
-                    os = g["away_score"] if g["home"] == selected else g["home_score"]
-                    result = "W" if ts > os else "L"
-                    winner = selected if result == "W" else opp
-                    
-                    home_class = "winner" if g["home"] == winner else ""
-                    away_class = "winner" if g["away"] == winner else ""
-                    
-                    st.markdown(f"""
-                    <div class="match-date">{g["date"]}</div>
-                    <div class="match-card">
-                        <div class="team home {home_class}">{g["home"]}</div>
-                        <div class="score">{g["home_score"]} – {g["away_score"]}</div>
-                        <div class="team away {away_class}">{g["away"]}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 5 — LEAGUE MANAGEMENT
-# ══════════════════════════════════════════════════════════════════════════════
-with tab5:
-    st.markdown("### League Administration")
-    
-    st.markdown("#### Current Phase")
-    new_phase = st.radio(
-        "Select Active Phase",
-        ["Apertura", "Clausura"],
-        index=0 if st.session_state.current_phase == "Apertura" else 1
-    )
-    
-    if new_phase != st.session_state.current_phase:
-        st.session_state.current_phase = new_phase
-        save_state()
-        st.success(f"Phase changed to {new_phase}")
-        st.rerun()
-    
-    st.markdown("---")
-    st.markdown("#### Founding Members")
-    
-    for member in FOUNDING_MEMBERS:
-        st.markdown(f"""
-        <div style="padding: 0.75rem; background: white; margin-bottom: 0.5rem; 
-                    border-left: 3px solid #38003c; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-            <img src="{get_soccer_ball_svg()}" style="width: 24px; height: 24px; 
-                 vertical-align: middle; margin-right: 0.75rem;">
-            <strong>{member}</strong>
-            <span style="color: #666; margin-left: 1rem; font-size: 0.85rem;">Founding Member</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("#### Danger Zone")
-    
-    with st.expander("⚠ Reset League Data"):
-        st.warning("This will permanently delete all match results. Teams will be preserved.")
-        if st.button("Reset All Matches", type="secondary"):
-            st.session_state.games = []
-            save_state()
-            st.success("All match data has been cleared.")
-            st.rerun()
+    with co
