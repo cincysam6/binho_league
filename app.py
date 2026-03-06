@@ -241,7 +241,6 @@ st.markdown("""
         max-width: 1400px;
     }
     
-    /* Header */
     .spbl-header {
         background: #0a0a0a;
         border-radius: 16px;
@@ -289,7 +288,6 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     
-    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 0.5rem;
         background: transparent;
@@ -314,7 +312,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
-    /* League Table */
     .league-table {
         width: 100%;
         border-collapse: separate;
@@ -367,7 +364,6 @@ st.markdown("""
         border-bottom: none;
     }
     
-    /* Position badges */
     .pos {
         display: inline-block;
         width: 32px;
@@ -394,7 +390,6 @@ st.markdown("""
         margin-right: 1rem;
     }
     
-    /* Form indicators */
     .form-w, .form-l {
         display: inline-block;
         width: 28px;
@@ -417,7 +412,6 @@ st.markdown("""
         color: white;
     }
     
-    /* Record Match Card */
     .record-card {
         background: white;
         border-radius: 16px;
@@ -445,7 +439,6 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
     
-    /* Match Cards */
     .match-card {
         background: white;
         border-radius: 12px;
@@ -498,7 +491,6 @@ st.markdown("""
         letter-spacing: 1px;
     }
     
-    /* Stats Cards */
     .stat-card {
         background: white;
         border-radius: 12px;
@@ -531,7 +523,6 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Buttons */
     .stButton > button {
         background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
         color: white;
@@ -553,7 +544,6 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(0,255,135,0.3);
     }
     
-    /* Section Headers */
     h3 {
         color: #0a0a0a;
         font-weight: 800;
@@ -562,7 +552,6 @@ st.markdown("""
         letter-spacing: -1px;
     }
     
-    /* Coaster Cup Card */
     .coaster-card {
         background: white;
         border-radius: 12px;
@@ -589,28 +578,12 @@ st.markdown("""
         margin-top: 0.25rem;
     }
     
-    /* Charter styling */
     .charter-content {
         background: white;
         border-radius: 12px;
         padding: 3rem;
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         line-height: 1.8;
-    }
-    
-    .charter-content h2 {
-        color: #0a0a0a;
-        font-weight: 800;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-    }
-    
-    .charter-content h3 {
-        color: #333;
-        font-weight: 700;
-        font-size: 1.2rem;
-        margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -643,4 +616,390 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 with tab1:
     col1, col2 = st.columns([3, 1])
     
-    with co
+    with col1:
+        st.markdown("### Current Standings")
+    
+    with col2:
+        view_phase = st.selectbox(
+            "View Phase",
+            ["Overall", "Apertura", "Clausura"],
+            label_visibility="collapsed"
+        )
+    
+    if view_phase == "Overall":
+        df = compute_standings()
+    else:
+        df = compute_standings(phase_filter=view_phase)
+    
+    if df.empty:
+        st.info("No matches recorded yet. Record your first match to see the table.")
+    else:
+        rows_html = ""
+        for pos, row in df.iterrows():
+            if pos == 1:
+                pos_class = "pos-1"
+            elif pos == 2:
+                pos_class = "pos-2"
+            elif pos == 3:
+                pos_class = "pos-3"
+            elif pos <= 4:
+                pos_class = "pos-top4"
+            elif pos == len(df):
+                pos_class = "pos-bottom"
+            else:
+                pos_class = "pos-normal"
+            
+            logo = get_soccer_ball_svg()
+            
+            rows_html += f"""
+            <tr>
+                <td>
+                    <span class="pos {pos_class}">{pos}</span>
+                    <img src="{logo}" class="team-logo">
+                    {row["Team"]}
+                </td>
+                <td>{row["P"]}</td>
+                <td>{row["W"]}</td>
+                <td>{row["D"]}</td>
+                <td>{row["L"]}</td>
+                <td>{row["GF"]}</td>
+                <td>{row["GA"]}</td>
+                <td><strong>{row["GD"]:+d}</strong></td>
+                <td><strong>{row["Pts"]}</strong></td>
+                <td>{row["Form"]}</td>
+            </tr>
+            """
+        
+        st.markdown(f"""
+        <table class="league-table">
+            <thead>
+                <tr>
+                    <th>Club</th>
+                    <th>P</th>
+                    <th>W</th>
+                    <th>D</th>
+                    <th>L</th>
+                    <th>GF</th>
+                    <th>GA</th>
+                    <th>GD</th>
+                    <th>Pts</th>
+                    <th>Form</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+        </table>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.caption("🥇 Champion Position")
+        with col2:
+            st.caption("🟢 Top 4 (World Cup Qualification)")
+        with col3:
+            st.caption("🔴 Last Place (Hat of Shame)")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 2 — RECORD RESULT
+# ══════════════════════════════════════════════════════════════════════════════
+with tab2:
+    st.markdown("### Record Match Result")
+    
+    teams = list(st.session_state.teams.keys())
+    
+    if len(teams) < 2:
+        st.warning("Insufficient teams in the league.")
+    else:
+        st.markdown('<div class="record-card">', unsafe_allow_html=True)
+        
+        with st.form("record_match", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown('<div class="score-input-label">Home Team</div>', unsafe_allow_html=True)
+                home_team = st.selectbox("Home", teams, label_visibility="collapsed", key="home_sel")
+                home_score = st.number_input("Home Score", 0, 7, 7, key="home_score")
+            
+            with col2:
+                st.markdown('<div class="score-input-label">Away Team</div>', unsafe_allow_html=True)
+                away_team = st.selectbox("Away", [t for t in teams if t != home_team], label_visibility="collapsed", key="away_sel")
+                away_score = st.number_input("Away Score", 0, 7, 0, key="away_score")
+            
+            st.markdown('<div class="vs-divider">VS</div>', unsafe_allow_html=True)
+            
+            col3, col4 = st.columns(2)
+            with col3:
+                match_date = st.date_input("Match Date", value=datetime.today())
+            with col4:
+                phase = st.selectbox("Phase", ["Apertura", "Clausura"])
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit = st.form_submit_button("Record Match", use_container_width=True)
+            
+            if submit:
+                if home_score == away_score:
+                    st.error("Binho matches cannot end in a draw. One team must reach 7.")
+                elif home_score != 7 and away_score != 7:
+                    st.error("Match must be played to 7 points.")
+                elif home_team == away_team:
+                    st.error("Home and away teams must be different.")
+                else:
+                    match = {
+                        "id": len(st.session_state.games) + 1,
+                        "home": home_team,
+                        "away": away_team,
+                        "home_score": int(home_score),
+                        "away_score": int(away_score),
+                        "date": str(match_date),
+                        "phase": phase
+                    }
+                    st.session_state.games.append(match)
+                    save_state()
+                    
+                    winner = home_team if home_score > away_score else away_team
+                    st.success(f"✓ Match recorded: **{winner}** wins {home_score}–{away_score}")
+                    st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — FIXTURES & RESULTS
+# ══════════════════════════════════════════════════════════════════════════════
+with tab3:
+    st.markdown("### Match Results")
+    
+    filter_phase = st.selectbox("Filter by Phase", ["All Matches", "Apertura", "Clausura"])
+    
+    games = st.session_state.games
+    if filter_phase != "All Matches":
+        games = [g for g in games if g.get("phase") == filter_phase]
+    
+    if not games:
+        st.info("No matches recorded yet.")
+    else:
+        for g in reversed(games):
+            winner = g["home"] if g["home_score"] > g["away_score"] else g["away"]
+            
+            home_class = "winner" if g["home"] == winner else ""
+            away_class = "winner" if g["away"] == winner else ""
+            
+            st.markdown(f"""
+            <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
+            <div class="match-card">
+                <div class="team home {home_class}">{g["home"]}</div>
+                <div class="score">{g["home_score"]} – {g["away_score"]}</div>
+                <div class="team away {away_class}">{g["away"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 4 — TEAM STATS
+# ══════════════════════════════════════════════════════════════════════════════
+with tab4:
+    st.markdown("### Team Statistics")
+    
+    teams = st.session_state.teams
+    if not teams:
+        st.info("No teams in the league.")
+    else:
+        selected = st.selectbox("Select Team", list(teams.keys()))
+        
+        if selected:
+            team_games = [g for g in st.session_state.games 
+                         if g["home"] == selected or g["away"] == selected]
+            
+            wins = sum(1 for g in team_games if 
+                      (g["home"] == selected and g["home_score"] > g["away_score"]) or
+                      (g["away"] == selected and g["away_score"] > g["home_score"]))
+            
+            losses = len(team_games) - wins
+            
+            gf = sum(g["home_score"] if g["home"] == selected else g["away_score"] 
+                    for g in team_games)
+            ga = sum(g["away_score"] if g["home"] == selected else g["home_score"] 
+                    for g in team_games)
+            
+            win_pct = round(wins / len(team_games) * 100) if team_games else 0
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="value">{len(team_games)}</div>
+                    <div class="label">Played</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="value">{wins}</div>
+                    <div class="label">Wins</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="value">{gf}</div>
+                    <div class="label">Goals For</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="value">{win_pct}%</div>
+                    <div class="label">Win Rate</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            
+            if team_games:
+                st.markdown("#### Recent Results")
+                for g in reversed(team_games[-5:]):
+                    winner = g["home"] if g["home_score"] > g["away_score"] else g["away"]
+                    
+                    home_class = "winner" if g["home"] == winner else ""
+                    away_class = "winner" if g["away"] == winner else ""
+                    
+                    st.markdown(f"""
+                    <div class="match-date">{g["date"]}</div>
+                    <div class="match-card">
+                        <div class="team home {home_class}">{g["home"]}</div>
+                        <div class="score">{g["home_score"]} – {g["away_score"]}</div>
+                        <div class="team away {away_class}">{g["away"]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 5 — COASTER CUPS
+# ══════════════════════════════════════════════════════════════════════════════
+with tab5:
+    st.markdown("### Monthly Coaster Cups")
+    
+    st.markdown("""
+    The Coaster Cup is a monthly knockout tournament. The winner of the most cups over the year 
+    earns one beverage of their choice from every other founding member.
+    """)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    with st.expander("➕ Record Coaster Cup Winner", expanded=len(st.session_state.coaster_cups) == 0):
+        with st.form("add_coaster_cup"):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                cup_month = st.selectbox("Month", [
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                ])
+            
+            with col2:
+                cup_winner = st.selectbox("Winner", list(st.session_state.teams.keys()))
+            
+            with col3:
+                cup_location = st.selectbox("Location", [
+                    "13 Below Brewery",
+                    "West Side Brewery",
+                    "Other"
+                ])
+            
+            if st.form_submit_button("Record Coaster Cup", use_container_width=True):
+                cup = {
+                    "month": cup_month,
+                    "winner": cup_winner,
+                    "location": cup_location,
+                    "date": str(datetime.today().date())
+                }
+                st.session_state.coaster_cups.append(cup)
+                save_state()
+                st.success(f"✓ {cup_month} Coaster Cup recorded: **{cup_winner}** wins!")
+                st.rerun()
+    
+    if st.session_state.coaster_cups:
+        cup_wins = {}
+        for cup in st.session_state.coaster_cups:
+            winner = cup["winner"]
+            cup_wins[winner] = cup_wins.get(winner, 0) + 1
+        
+        st.markdown("#### Coaster Cup Leaderboard")
+        sorted_winners = sorted(cup_wins.items(), key=lambda x: x[1], reverse=True)
+        
+        for i, (winner, wins) in enumerate(sorted_winners, 1):
+            badge = "🏆" if i == 1 else f"{i}."
+            st.markdown(f"""
+            <div class="coaster-card {'winner' if i == 1 else ''}">
+                <h4>{badge} {winner} — {wins} Cup{"s" if wins != 1 else ""}</h4>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        
+        st.markdown("#### All Coaster Cups")
+        for cup in reversed(st.session_state.coaster_cups):
+            st.markdown(f"""
+            <div class="coaster-card winner">
+                <h4>{cup["month"]} — {cup["winner"]}</h4>
+                <div class="location">📍 {cup["location"]} • {cup["date"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No Coaster Cups recorded yet.")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 6 — LEAGUE CHARTER
+# ══════════════════════════════════════════════════════════════════════════════
+with tab6:
+    st.markdown("### SPBL League Charter")
+    
+    st.markdown(f'<div class="charter-content">{LEAGUE_CHARTER}</div>', unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 7 — SETTINGS
+# ══════════════════════════════════════════════════════════════════════════════
+with tab7:
+    st.markdown("### League Administration")
+    
+    st.markdown("#### Current Phase")
+    new_phase = st.radio(
+        "Select Active Phase",
+        ["Apertura", "Clausura"],
+        index=0 if st.session_state.current_phase == "Apertura" else 1
+    )
+    
+    if new_phase != st.session_state.current_phase:
+        st.session_state.current_phase = new_phase
+        save_state()
+        st.success(f"Phase changed to {new_phase}")
+        st.rerun()
+    
+    st.markdown("---")
+    st.markdown("#### Founding Members")
+    
+    for member in FOUNDING_MEMBERS:
+        st.markdown(f"""
+        <div style="padding: 1rem; background: white; margin-bottom: 0.5rem; 
+                    border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <img src="{get_soccer_ball_svg()}" style="width: 28px; height: 28px; 
+                 vertical-align: middle; margin-right: 1rem;">
+            <strong>{member}</strong>
+            <span style="color: #666; margin-left: 1rem; font-size: 0.85rem;">Founding Member</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("#### Danger Zone")
+    
+    with st.expander("⚠ Reset League Data"):
+        st.warning("This will permanently delete all match results. Teams will be preserved.")
+        if st.button("Reset All Matches", type="secondary"):
+            st.session_state.games = []
+            save_state()
+            st.success("All match data has been cleared.")
+            st.rerun()
