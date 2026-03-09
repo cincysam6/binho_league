@@ -3,9 +3,6 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
-import base64
-
-### Testing a change ###
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLAYER PARK BINHO LEAGUE (SPBL) - Official League Management System
@@ -14,7 +11,7 @@ import base64
 st.set_page_config(
     page_title="SPBL - Slayer Park Binho League",
     page_icon="⚽",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
@@ -23,6 +20,7 @@ DATA_DIR = "spbl_data"
 TEAMS_FILE = os.path.join(DATA_DIR, "teams.json")
 GAMES_FILE = os.path.join(DATA_DIR, "games.json")
 COASTER_FILE = os.path.join(DATA_DIR, "coaster_cups.json")
+ADMIN_PASSWORD = "jodabean417"
 
 def ensure_dirs():
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -133,33 +131,9 @@ def save_state():
     save_json(GAMES_FILE, st.session_state.games)
     save_json(COASTER_FILE, st.session_state.coaster_cups)
 
-# ── Logo Management ───────────────────────────────────────────────────────────
-def get_soccer_ball_svg():
-    """Return base64 encoded soccer ball SVG"""
-    svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <defs>
-    <radialGradient id="ballGrad" cx="40%" cy="40%">
-      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#e0e0e0;stop-opacity:1" />
-    </radialGradient>
-  </defs>
-  <circle cx="100" cy="100" r="95" fill="url(#ballGrad)" stroke="#333" stroke-width="2"/>
-  <g fill="#1a1a1a">
-    <polygon points="100,20 85,45 100,55 115,45"/>
-    <polygon points="70,50 55,65 60,85 80,80"/>
-    <polygon points="130,50 120,80 140,85 145,65"/>
-    <polygon points="40,95 50,115 70,110 65,90"/>
-    <polygon points="160,95 135,90 130,110 150,115"/>
-    <polygon points="85,135 100,145 115,135 110,115 90,115"/>
-    <polygon points="60,155 75,170 90,160 85,140"/>
-    <polygon points="110,140 115,160 130,170 140,155"/>
-  </g>
-</svg>'''
-    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
-
 # ── Standings Calculator ──────────────────────────────────────────────────────
 def compute_standings(phase_filter=None):
-    """Calculate league standings - simplified columns"""
+    """Calculate league standings"""
     teams = st.session_state.teams
     games = st.session_state.games
     
@@ -167,7 +141,7 @@ def compute_standings(phase_filter=None):
         games = [g for g in games if g.get("phase") == phase_filter]
     
     stats = {
-        name: {"W": 0, "L": 0, "GF": 0, "GA": 0}
+        name: {"MP": 0, "W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0, "Form": []}
         for name in teams
     }
     
@@ -178,311 +152,302 @@ def compute_standings(phase_filter=None):
         if h not in stats or a not in stats:
             continue
             
-        # Home team
-        stats[h]["GF"] += hs
-        stats[h]["GA"] += as_
-        if hs > as_:
-            stats[h]["W"] += 1
-        else:
-            stats[h]["L"] += 1
-        
-        # Away team
-        stats[a]["GF"] += as_
-        stats[a]["GA"] += hs
-        if as_ > hs:
-            stats[a]["W"] += 1
-        else:
-            stats[a]["L"] += 1
+        for team, scored, conceded in [(h, hs, as_), (a, as_, hs)]:
+            stats[team]["MP"] += 1
+            stats[team]["GF"] += scored
+            stats[team]["GA"] += conceded
+            
+            if scored > conceded:
+                stats[team]["W"] += 1
+                stats[team]["Form"].append("W")
+            elif scored == conceded:
+                stats[team]["D"] += 1
+                stats[team]["Form"].append("D")
+            else:
+                stats[team]["L"] += 1
+                stats[team]["Form"].append("L")
     
     rows = []
     for name, s in stats.items():
+        gd = s["GF"] - s["GA"]
+        pts = (s["W"] * 3) + s["D"]
+        form = "".join(s["Form"][-5:])
         rows.append({
-            "Team": name,
+            "Club": f"⚽ {name}",
+            "MP": s["MP"],
             "W": s["W"],
+            "D": s["D"],
             "L": s["L"],
             "GF": s["GF"],
             "GA": s["GA"],
+            "GD": gd,
+            "Pts": pts,
+            "Last 5": form
         })
     
     df = pd.DataFrame(rows)
     if not df.empty:
-        # Sort by wins (desc), then goal diff (desc)
-        df['GD'] = df['GF'] - df['GA']
-        df = df.sort_values(["W", "GD", "GF"], ascending=False).reset_index(drop=True)
-        df = df.drop('GD', axis=1)  # Remove temp column
+        df = df.sort_values(["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
+        df.index = df.index + 1
+        df.index.name = "Rank"
     
     return df
 
-# ── Modern Minimalist CSS ─────────────────────────────────────────────────────
+# ── Dark Theme CSS ────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
     
-    * {
-        font-family: 'Inter', -apple-system, sans-serif;
-    }
+    * { font-family: 'Inter', sans-serif; }
+    
+    .main { background-color: #1a1a1a; }
     
     .block-container {
-        padding: 2rem 3rem;
-        max-width: 1400px;
+        padding: 1rem !important;
+        max-width: 1100px !important;
     }
     
+    /* Header */
     .spbl-header {
-        background: #0a0a0a;
-        border-radius: 16px;
-        padding: 3rem 3rem 2.5rem 3rem;
-        margin: -2rem -3rem 3rem -3rem;
+        background: linear-gradient(135deg, #38003c, #2b0030);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
         color: white;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .spbl-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #00ff87, #60efff);
+        border-bottom: 3px solid #00ff85;
     }
     
     .spbl-header h1 {
-        font-size: 2.8rem;
-        font-weight: 800;
         margin: 0;
-        letter-spacing: -1.5px;
+        font-size: 1.8rem;
+        font-weight: 900;
+        letter-spacing: -0.5px;
     }
     
     .spbl-header .subtitle {
-        font-size: 1.1rem;
-        margin: 0.75rem 0 0 0;
-        opacity: 0.6;
-        font-weight: 400;
-        letter-spacing: 0.3px;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        opacity: 0.8;
     }
     
     .phase-badge {
         display: inline-block;
-        background: linear-gradient(135deg, #00ff87, #60efff);
-        color: #0a0a0a;
-        padding: 0.4rem 1rem;
-        border-radius: 20px;
+        background: #00ff85;
+        color: #38003c;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
         font-weight: 700;
-        font-size: 0.85rem;
-        margin-left: 1rem;
-        letter-spacing: 0.5px;
+        font-size: 0.7rem;
+        margin-left: 0.5rem;
     }
     
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 0.5rem;
+        gap: 0.25rem;
         background: transparent;
-        border: none;
-        padding: 0 0 1.5rem 0;
     }
     
     .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
+        background: #2a2a2a;
+        color: #999;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
         font-weight: 600;
-        font-size: 0.95rem;
-        padding: 0.8rem 1.5rem;
-        background: #f5f5f5;
-        color: #666;
-        border: none;
-        transition: all 0.2s;
+        font-size: 0.85rem;
     }
     
     .stTabs [aria-selected="true"] {
-        background: #0a0a0a !important;
-        color: white !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: #38003c !important;
+        color: #00ff85 !important;
     }
     
-    /* Streamlit dataframe styling */
+    /* Table Styling */
     .stDataFrame {
-        width: 100%;
-    }
-    
-    .stDataFrame > div {
-        width: 100% !important;
+        background: #1e1e1e;
+        border-radius: 12px;
+        overflow: hidden;
     }
     
     .stDataFrame [data-testid="stDataFrameResizable"] {
-        width: 100% !important;
+        background: #1e1e1e;
     }
     
-    .record-card {
-        background: white;
-        border-radius: 16px;
-        padding: 2.5rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        max-width: 700px;
-        margin: 0 auto;
-    }
-    
-    .vs-divider {
-        text-align: center;
-        font-size: 2rem;
-        font-weight: 800;
-        color: #e0e0e0;
-        margin: 1rem 0;
-        letter-spacing: 2px;
-    }
-    
-    .score-input-label {
-        font-size: 0.75rem;
+    .stDataFrame thead tr th {
+        background-color: #2a2a2a !important;
+        color: #999 !important;
+        font-weight: 700 !important;
+        font-size: 0.75rem !important;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #999;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
+        letter-spacing: 0.5px;
+        padding: 1rem 0.75rem !important;
+        border-bottom: 1px solid #333 !important;
     }
     
-    .match-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem 2rem;
+    .stDataFrame tbody tr td {
+        background-color: #1e1e1e !important;
+        color: #fff !important;
+        font-size: 0.9rem !important;
+        padding: 1rem 0.75rem !important;
+        border-bottom: 1px solid #2a2a2a !important;
+    }
+    
+    .stDataFrame tbody tr:hover td {
+        background-color: #252525 !important;
+    }
+    
+    .stDataFrame tbody tr:first-child td {
+        border-left: 3px solid #00ff85;
+    }
+    
+    .stDataFrame tbody tr:last-child td {
+        border-left: 3px solid #ff4458;
+    }
+    
+    h3 {
+        color: #fff;
+        font-weight: 800;
         margin-bottom: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .stSelectbox label, .stNumberInput label, .stDateInput label {
+        color: #999 !important;
+    }
+    
+    .stSelectbox > div > div, .stNumberInput > div > div, .stDateInput > div > div {
+        background: #2a2a2a;
+        color: #fff;
+        border: 1px solid #444;
+    }
+    
+    .stButton > button {
+        background: #38003c;
+        color: #00ff85;
+        font-weight: 700;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        border: none;
+    }
+    
+    .stButton > button:hover {
+        background: #2b0030;
+    }
+    
+    /* Match Cards */
+    .match-card {
+        background: #1e1e1e;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-left: 3px solid #38003c;
         display: grid;
         grid-template-columns: 1fr auto 1fr;
         align-items: center;
-        gap: 2rem;
-        transition: all 0.2s;
-    }
-    
-    .match-card:hover {
-        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-        transform: translateY(-2px);
+        gap: 1rem;
     }
     
     .match-card .team {
         font-weight: 600;
-        font-size: 1.05rem;
+        font-size: 0.9rem;
+        color: #fff;
     }
     
     .match-card .home { text-align: right; }
     .match-card .away { text-align: left; }
     
     .match-card .score {
-        background: #0a0a0a;
-        color: white;
+        background: #38003c;
+        color: #00ff85;
         font-weight: 800;
-        font-size: 1.6rem;
-        padding: 0.6rem 1.5rem;
-        border-radius: 10px;
-        min-width: 100px;
-        text-align: center;
-        letter-spacing: 3px;
+        font-size: 1.2rem;
+        padding: 0.4rem 0.9rem;
+        border-radius: 6px;
+        letter-spacing: 2px;
     }
     
     .match-card .winner {
-        color: #00ff87;
-        font-weight: 700;
+        color: #00ff85;
     }
     
     .match-date {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         color: #999;
-        margin-bottom: 0.75rem;
-        font-weight: 600;
+        margin-bottom: 0.5rem;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
     }
     
+    /* Stat Cards */
     .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 2rem 1.5rem;
+        background: #1e1e1e;
+        border-radius: 10px;
+        padding: 1.25rem 1rem;
         text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        transition: all 0.2s;
-    }
-    
-    .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        border-top: 3px solid #00ff85;
     }
     
     .stat-card .value {
-        font-size: 3rem;
+        font-size: 2rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #00ff87, #60efff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #00ff85;
         line-height: 1;
     }
     
     .stat-card .label {
-        font-size: 0.8rem;
-        color: #666;
-        margin-top: 0.75rem;
+        font-size: 0.7rem;
+        color: #999;
+        margin-top: 0.5rem;
         text-transform: uppercase;
-        letter-spacing: 1px;
         font-weight: 600;
     }
     
-    .stButton > button {
-        background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
-        color: white;
-        border: none;
-        padding: 1rem 2rem;
-        font-weight: 700;
-        border-radius: 10px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.9rem;
-        transition: all 0.2s;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #00ff87, #60efff);
-        color: #0a0a0a;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0,255,135,0.3);
-    }
-    
-    h3 {
-        color: #0a0a0a;
-        font-weight: 800;
-        font-size: 1.8rem;
-        margin-bottom: 2rem;
-        letter-spacing: -1px;
-    }
-    
+    /* Coaster Cards */
     .coaster-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem 2rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        border-left: 4px solid;
+        background: #1e1e1e;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 0.75rem;
+        border-left: 4px solid #444;
     }
     
     .coaster-card.winner {
-        border-left-color: #00ff87;
-        background: linear-gradient(90deg, rgba(0,255,135,0.05), white);
+        border-left-color: #00ff85;
+        background: linear-gradient(90deg, rgba(0,255,135,0.1), #1e1e1e);
     }
     
     .coaster-card h4 {
         margin: 0 0 0.5rem 0;
-        font-size: 1.2rem;
+        font-size: 1rem;
         font-weight: 700;
+        color: #fff;
     }
     
     .coaster-card .location {
-        color: #666;
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
+        color: #999;
+        font-size: 0.85rem;
     }
     
+    /* Charter */
     .charter-content {
-        background: white;
+        background: #1e1e1e;
         border-radius: 12px;
-        padding: 3rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        line-height: 1.8;
+        padding: 1.5rem;
+        line-height: 1.7;
+        color: #ddd;
+    }
+    
+    .record-card {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    
+    .vs-divider {
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #444;
+        margin: 0.75rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -500,12 +465,12 @@ st.markdown(f"""
 
 # ── Navigation ────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "League Table",
-    "Record Result",
-    "Fixtures & Results",
-    "Team Stats",
-    "Coaster Cups",
-    "League Charter",
+    "Table",
+    "Record",
+    "Results",
+    "Stats",
+    "Cups",
+    "Charter",
     "Settings"
 ])
 
@@ -513,17 +478,13 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 # TAB 1 — LEAGUE TABLE
 # ══════════════════════════════════════════════════════════════════════════════
 with tab1:
-    col1, col2 = st.columns([3, 1])
+    st.markdown("### League Standings")
     
-    with col1:
-        st.markdown("### Current Standings")
-    
-    with col2:
-        view_phase = st.selectbox(
-            "View Phase",
-            ["Overall", "Apertura", "Clausura"],
-            label_visibility="collapsed"
-        )
+    view_phase = st.selectbox(
+        "View Phase",
+        ["Overall", "Apertura", "Clausura"],
+        label_visibility="collapsed"
+    )
     
     if view_phase == "Overall":
         df = compute_standings()
@@ -533,17 +494,21 @@ with tab1:
     if df.empty:
         st.info("No matches recorded yet. Record your first match to see the table.")
     else:
-        # Display using Streamlit's dataframe with custom config
         st.dataframe(
             df,
             use_container_width=True,
-            hide_index=True,
+            height=min(600, 100 + len(df) * 50),
             column_config={
-                "Team": st.column_config.TextColumn("Team", width="large"),
-                "W": st.column_config.NumberColumn("Wins", width="small"),
-                "L": st.column_config.NumberColumn("Losses", width="small"),
-                "GF": st.column_config.NumberColumn("Goals For", width="small"),
-                "GA": st.column_config.NumberColumn("Goals Against", width="small"),
+                "Club": st.column_config.TextColumn("Club", width="large"),
+                "MP": st.column_config.NumberColumn("MP", width="small"),
+                "W": st.column_config.NumberColumn("W", width="small"),
+                "D": st.column_config.NumberColumn("D", width="small"),
+                "L": st.column_config.NumberColumn("L", width="small"),
+                "GF": st.column_config.NumberColumn("GF", width="small"),
+                "GA": st.column_config.NumberColumn("GA", width="small"),
+                "GD": st.column_config.NumberColumn("GD", width="small"),
+                "Pts": st.column_config.NumberColumn("Pts", width="small"),
+                "Last 5": st.column_config.TextColumn("Last 5", width="medium"),
             }
         )
 
@@ -564,12 +529,12 @@ with tab2:
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown('<div class="score-input-label">Home Team</div>', unsafe_allow_html=True)
+                st.markdown("**Home Team**")
                 home_team = st.selectbox("Home", teams, label_visibility="collapsed", key="home_sel")
                 home_score = st.number_input("Home Score", 0, 7, 7, key="home_score")
             
             with col2:
-                st.markdown('<div class="score-input-label">Away Team</div>', unsafe_allow_html=True)
+                st.markdown("**Away Team**")
                 away_team = st.selectbox("Away", [t for t in teams if t != home_team], label_visibility="collapsed", key="away_sel")
                 away_score = st.number_input("Away Score", 0, 7, 0, key="away_score")
             
@@ -616,7 +581,39 @@ with tab2:
 with tab3:
     st.markdown("### Match Results")
     
-    filter_phase = st.selectbox("Filter by Phase", ["All Matches", "Apertura", "Clausura"])
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        filter_phase = st.selectbox("Filter by Phase", ["All Matches", "Apertura", "Clausura"])
+    with col2:
+        if st.session_state.games:
+            if st.button("🗑️ Delete", use_container_width=True):
+                st.session_state.show_delete_confirm = True
+    
+    if "show_delete_confirm" in st.session_state and st.session_state.show_delete_confirm:
+        with st.form("delete_match_form"):
+            st.warning("⚠️ Enter passcode to delete a match")
+            passcode = st.text_input("Passcode", type="password")
+            match_to_delete = st.selectbox("Select match to delete", 
+                [f"{g['date']} - {g['home']} {g['home_score']}-{g['away_score']} {g['away']}" 
+                 for g in reversed(st.session_state.games)])
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.form_submit_button("Confirm Delete", use_container_width=True):
+                    if passcode == ADMIN_PASSWORD:
+                        match_idx = len(st.session_state.games) - 1 - [f"{g['date']} - {g['home']} {g['home_score']}-{g['away_score']} {g['away']}" 
+                         for g in reversed(st.session_state.games)].index(match_to_delete)
+                        del st.session_state.games[match_idx]
+                        save_state()
+                        st.session_state.show_delete_confirm = False
+                        st.success("Match deleted!")
+                        st.rerun()
+                    else:
+                        st.error("Incorrect passcode!")
+            with col_b:
+                if st.form_submit_button("Cancel", use_container_width=True):
+                    st.session_state.show_delete_confirm = False
+                    st.rerun()
     
     games = st.session_state.games
     if filter_phase != "All Matches":
@@ -703,7 +700,7 @@ with tab4:
                 </div>
                 """, unsafe_allow_html=True)
             
-            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
             
             if team_games:
                 st.markdown("#### Recent Results")
@@ -737,23 +734,18 @@ with tab5:
     
     with st.expander("➕ Record Coaster Cup Winner", expanded=len(st.session_state.coaster_cups) == 0):
         with st.form("add_coaster_cup"):
-            col1, col2, col3 = st.columns(3)
+            cup_month = st.selectbox("Month", [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+            ])
             
-            with col1:
-                cup_month = st.selectbox("Month", [
-                    "January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"
-                ])
+            cup_winner = st.selectbox("Winner", list(st.session_state.teams.keys()))
             
-            with col2:
-                cup_winner = st.selectbox("Winner", list(st.session_state.teams.keys()))
-            
-            with col3:
-                cup_location = st.selectbox("Location", [
-                    "13 Below Brewery",
-                    "West Side Brewery",
-                    "Other"
-                ])
+            cup_location = st.selectbox("Location", [
+                "13 Below Brewery",
+                "West Side Brewery",
+                "Other"
+            ])
             
             if st.form_submit_button("Record Coaster Cup", use_container_width=True):
                 cup = {
@@ -784,7 +776,7 @@ with tab5:
             </div>
             """, unsafe_allow_html=True)
         
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         
         st.markdown("#### All Coaster Cups")
         for cup in reversed(st.session_state.coaster_cups):
@@ -825,24 +817,17 @@ with tab7:
         st.rerun()
     
     st.markdown("---")
-    st.markdown("#### Founding Members")
-    
-    for member in FOUNDING_MEMBERS:
-        st.markdown(f"""
-        <div style="padding: 1rem; background: white; margin-bottom: 0.5rem; 
-                    border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <strong>{member}</strong>
-            <span style="color: #666; margin-left: 1rem; font-size: 0.85rem;">Founding Member</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
     st.markdown("#### Danger Zone")
     
-    with st.expander("⚠ Reset League Data"):
-        st.warning("This will permanently delete all match results. Teams will be preserved.")
-        if st.button("Reset All Matches", type="secondary"):
-            st.session_state.games = []
-            save_state()
-            st.success("All match data has been cleared.")
-            st.rerun()
+    with st.expander("⚠ Reset All League Data"):
+        st.warning("This requires admin passcode and will permanently delete ALL match results.")
+        with st.form("reset_form"):
+            reset_passcode = st.text_input("Enter passcode", type="password")
+            if st.form_submit_button("Reset All Matches", type="secondary"):
+                if reset_passcode == ADMIN_PASSWORD:
+                    st.session_state.games = []
+                    save_state()
+                    st.success("All match data has been cleared.")
+                    st.rerun()
+                else:
+                    st.error("Incorrect passcode!")
