@@ -716,7 +716,7 @@ with tab1:
                 gd_class = "gd-neutral"
                 gd_text = "0"
             
-            logo_html = get_team_logo_img(row['Owner'], 32)
+            logo_html = get_team_logo_img(row['Owner'], 44)
             
             rows_html += f"""
             <tr class="{rank_class}">
@@ -981,8 +981,8 @@ with tab3:
             home_class = "winner" if home_owner == winner else ""
             away_class = "winner" if away_owner == winner else ""
             
-            home_logo = get_team_logo_img(home_owner, 32)
-            away_logo = get_team_logo_img(away_owner, 32)
+            home_logo = get_team_logo_img(home_owner, 44)
+            away_logo = get_team_logo_img(away_owner, 44)
             
             st.markdown(f"""
             <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
@@ -1011,6 +1011,21 @@ with tab4:
         selected = st.selectbox("Select Team", list(teams.keys()),
             format_func=lambda x: f"{teams[x]['club_name']} ({x})")
         
+        st.markdown(
+            f"""
+            <div class="team-logo-display">
+                {get_team_logo_img(selected, 90)}
+                <div style="margin-top: 0.5rem; color: #fff; font-weight: 700; font-size: 1.1rem;">
+                    {teams[selected]['club_name']}
+                </div>
+                <div style="color: #888; font-size: 0.9rem;">
+                    Owner: {selected}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
         if selected:
             team_games = [g for g in games if g["home"] == selected or g["away"] == selected]
             
@@ -1076,8 +1091,8 @@ with tab4:
                     home_class = "winner" if home_owner == winner else ""
                     away_class = "winner" if away_owner == winner else ""
                     
-                    home_logo = get_team_logo_img(home_owner, 32)
-                    away_logo = get_team_logo_img(away_owner, 32)
+                    home_logo = get_team_logo_img(home_owner, 44)
+                    away_logo = get_team_logo_img(away_owner, 44)
                     
                     st.markdown(f"""
                     <div class="match-date">{g["date"]}</div>
