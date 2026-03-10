@@ -34,26 +34,24 @@ def get_logo_path(owner_name):
     logo_name = owner_name.lower().replace(" ", "_")
     return Path(f"assets/logos/{logo_name}.png")
 
-def encode_logo(logo_path):
-    """Encode logo to base64 for HTML display"""
+@st.cache_data
+def encode_logo(owner_name):
+    """Encode logo to base64 for display"""
+    logo_path = get_logo_path(owner_name)
     try:
         if logo_path.exists():
             with open(logo_path, "rb") as f:
                 return base64.b64encode(f.read()).decode()
-        return None
-    except:
-        return None
+    except Exception as e:
+        st.warning(f"Error loading logo for {owner_name}: {e}")
+    return None
 
-def get_logo_html(owner_name, size="28px"):
-    """Get HTML img tag for team logo"""
-    logo_path = get_logo_path(owner_name)
-    logo_b64 = encode_logo(logo_path)
-    
+def get_team_logo(owner_name, size=40):
+    """Get team logo as Streamlit image or emoji fallback"""
+    logo_b64 = encode_logo(owner_name)
     if logo_b64:
-        return f'<img src="data:image/png;base64,{logo_b64}" style="width:{size};height:{size};border-radius:50%;object-fit:cover;border:2px solid #333;">'
-    else:
-        # Fallback to soccer ball emoji
-        return f'<span style="font-size:{size};">⚽</span>'
+        return f'<img src="data:image/png;base64,{logo_b64}" width="{size}" height="{size}" style="border-radius: 50%; object-fit: cover; border: 2px solid #333;">'
+    return f'<span style="font-size: {size}px;">⚽</span>'
 
 # ── Data Loading Functions ────────────────────────────────────────────────────
 def load_teams():
@@ -213,11 +211,9 @@ def compute_standings(games, teams, phase_filter=None):
         pts = (s["W"] * 3) + s["D"]
         form = "".join(s["Form"][-5:])
         
-        logo_html = get_logo_html(name, "24px")
-        club_display = f"{logo_html} {s['club_name']}"
-        
         rows.append({
-            "Club": club_display,
+            "Logo": name,  # Will be replaced with logo in display
+            "Club": s['club_name'],
             "Owner": name,
             "MP": s["MP"],
             "W": s["W"],
@@ -233,12 +229,10 @@ def compute_standings(games, teams, phase_filter=None):
     df = pd.DataFrame(rows)
     if not df.empty:
         df = df.sort_values(["Pts", "GD", "GF"], ascending=False).reset_index(drop=True)
-        df.index = df.index + 1
-        df.index.name = "Rank"
     
     return df
 
-# ── Modern Dark Theme CSS ─────────────────────────────────────────────────────
+# ── Premier League Dark Theme CSS ─────────────────────────────────────────────
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800&display=swap');
@@ -282,16 +276,17 @@ st.markdown("""
     }
     
     .header-content {
-        padding: 2.5rem 2rem 2rem 2rem;
+        padding: 2.5rem 2rem;
         position: relative;
+        text-align: center;
     }
     
     .header-title {
         font-family: 'Orbitron', sans-serif;
-        font-size: 2.5rem;
+        font-size: 2.8rem;
         font-weight: 900;
         margin: 0;
-        letter-spacing: 3px;
+        letter-spacing: 4px;
         background: linear-gradient(135deg, #00ff85, #00d4ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -301,25 +296,12 @@ st.markdown("""
     
     @media (max-width: 768px) {
         .header-title {
-            font-size: 1.6rem;
-            letter-spacing: 1px;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
         }
         .header-content {
-            padding: 1.5rem 1rem 1.25rem 1rem;
+            padding: 1.5rem 1rem;
         }
-    }
-    
-    .phase-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #00ff85, #00d4ff);
-        color: #000;
-        padding: 0.4rem 1rem;
-        border-radius: 20px;
-        font-weight: 800;
-        font-size: 0.75rem;
-        margin-top: 0.75rem;
-        letter-spacing: 1px;
-        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.4);
     }
     
     /* Tabs */
@@ -352,51 +334,107 @@ st.markdown("""
         border-bottom-color: #00ff85 !important;
     }
     
-    /* Table Styling */
-    .stDataFrame {
+    /* Premier League Table */
+    .pl-table-wrapper {
         background: #1a1a1a;
         border-radius: 12px;
         overflow: hidden;
+        margin: 1rem 0;
         box-shadow: 0 4px 20px rgba(0, 255, 133, 0.1);
     }
     
-    .stDataFrame [data-testid="stDataFrameResizable"] {
-        background: #1a1a1a;
+    .pl-table {
+        width: 100%;
+        border-collapse: collapse;
     }
     
-    .stDataFrame thead tr th {
-        background-color: #0d0d0d !important;
-        color: #00ff85 !important;
-        font-weight: 800 !important;
-        font-size: 0.7rem !important;
+    .pl-table thead {
+        background: #0d0d0d;
+    }
+    
+    .pl-table th {
+        padding: 1rem 0.75rem;
+        text-align: center;
+        font-weight: 800;
+        font-size: 0.7rem;
+        color: #00ff85;
         text-transform: uppercase;
         letter-spacing: 1px;
-        padding: 1.2rem 0.75rem !important;
-        border-bottom: 2px solid #00ff85 !important;
+        border-bottom: 2px solid #00ff85;
     }
     
-    .stDataFrame tbody tr td {
-        background-color: #1a1a1a !important;
-        color: #fff !important;
-        font-size: 0.9rem !important;
-        padding: 1.2rem 0.75rem !important;
-        border-bottom: 1px solid #2a2a2a !important;
+    .pl-table th:first-child {
+        text-align: center;
+        width: 50px;
     }
     
-    .stDataFrame tbody tr:hover td {
-        background-color: #222 !important;
+    .pl-table th:nth-child(2) {
+        width: 60px;
+    }
+    
+    .pl-table th:nth-child(3) {
+        text-align: left;
+        padding-left: 1rem;
+    }
+    
+    .pl-table tbody tr {
+        border-bottom: 1px solid #2a2a2a;
+        transition: background 0.2s;
+    }
+    
+    .pl-table tbody tr:hover {
+        background: #222;
         box-shadow: inset 0 0 20px rgba(0, 255, 133, 0.1);
     }
     
-    .stDataFrame tbody tr:first-child td {
+    .pl-table tbody tr.rank-1 {
         border-left: 4px solid #00ff85;
         box-shadow: inset 0 0 30px rgba(0, 255, 133, 0.15);
     }
     
-    .stDataFrame tbody tr:last-child td {
+    .pl-table tbody tr.rank-last {
         border-left: 4px solid #ff4458;
         box-shadow: inset 0 0 30px rgba(255, 68, 88, 0.15);
     }
+    
+    .pl-table td {
+        padding: 1.2rem 0.75rem;
+        text-align: center;
+        font-size: 0.9rem;
+        color: #fff;
+        font-weight: 500;
+        background: #1a1a1a;
+    }
+    
+    .pl-table td:first-child {
+        color: #666;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    
+    .pl-table td:nth-child(2) {
+        text-align: center;
+    }
+    
+    .pl-table td:nth-child(3) {
+        text-align: left;
+        padding-left: 1rem;
+        font-weight: 600;
+    }
+    
+    .pl-table td:nth-child(4) {
+        text-align: left;
+        color: #999;
+    }
+    
+    .pl-table .pts-col {
+        font-weight: 700;
+        color: #fff;
+    }
+    
+    .gd-positive { color: #00ff85; font-weight: 700; }
+    .gd-negative { color: #ff4458; font-weight: 700; }
+    .gd-neutral { color: #666; font-weight: 600; }
     
     h3 {
         color: #00ff85;
@@ -495,6 +533,18 @@ st.markdown("""
         font-weight: 600;
     }
     
+    /* Team selector with logo */
+    .team-selector {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .team-logo-display {
+        flex-shrink: 0;
+    }
+    
     /* Stat Cards */
     .stat-card {
         background: #1a1a1a;
@@ -583,12 +633,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Modern Header ─────────────────────────────────────────────────────────────
-st.markdown(f"""
+# ── Modern Header (No subtitle) ───────────────────────────────────────────────
+st.markdown("""
 <div class="spbl-header">
     <div class="header-content">
         <div class="header-title">SLAYER PARK BINHO LEAGUE</div>
-        <div class="phase-badge">{st.session_state.current_phase.upper()}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -629,10 +678,75 @@ with tab1:
     if df.empty:
         st.info("No matches recorded yet. Record your first match to see the table.")
     else:
-        # Display without Club column (has HTML)
-        display_df = df.copy()
+        # Build Premier League style table with logos
+        rows_html = ""
+        for idx, row in df.iterrows():
+            rank = idx + 1
+            rank_class = ""
+            if rank == 1:
+                rank_class = "rank-1"
+            elif rank == len(df):
+                rank_class = "rank-last"
+            
+            gd = row['GD']
+            if gd > 0:
+                gd_class = "gd-positive"
+                gd_text = f"+{gd}"
+            elif gd < 0:
+                gd_class = "gd-negative"
+                gd_text = str(gd)
+            else:
+                gd_class = "gd-neutral"
+                gd_text = "0"
+            
+            logo_html = get_team_logo(row['Logo'], 32)
+            
+            rows_html += f"""
+            <tr class="{rank_class}">
+                <td>{rank}</td>
+                <td>{logo_html}</td>
+                <td>{row['Club']}</td>
+                <td>{row['Owner']}</td>
+                <td>{row['MP']}</td>
+                <td>{row['W']}</td>
+                <td>{row['D']}</td>
+                <td>{row['L']}</td>
+                <td>{row['GF']}</td>
+                <td>{row['GA']}</td>
+                <td><span class="{gd_class}">{gd_text}</span></td>
+                <td class="pts-col">{row['Pts']}</td>
+                <td>{row['Last 5']}</td>
+            </tr>
+            """
         
-        st.markdown(display_df.to_html(escape=False, index=True), unsafe_allow_html=True)
+        table_html = f"""
+        <div class="pl-table-wrapper">
+            <table class="pl-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th>Club</th>
+                        <th>Owner</th>
+                        <th>MP</th>
+                        <th>W</th>
+                        <th>D</th>
+                        <th>L</th>
+                        <th>GF</th>
+                        <th>GA</th>
+                        <th>GD</th>
+                        <th>Pts</th>
+                        <th>Last 5</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+        </div>
+        """
+        
+        st.markdown(table_html, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — RECORD RESULT
@@ -647,29 +761,48 @@ with tab2:
     else:
         st.markdown('<div class="record-card">', unsafe_allow_html=True)
         
+        # Team selection with logos
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Home Team**")
+            home_team = st.selectbox(
+                "Home", 
+                team_names,
+                format_func=lambda x: f"{teams[x]['club_name']} ({x})",
+                label_visibility="collapsed", 
+                key="home_sel"
+            )
+            # Display logo
+            st.markdown(f'<div class="team-logo-display">{get_team_logo(home_team, 60)}</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("**Away Team**")
+            away_team = st.selectbox(
+                "Away", 
+                [t for t in team_names if t != home_team],
+                format_func=lambda x: f"{teams[x]['club_name']} ({x})",
+                label_visibility="collapsed", 
+                key="away_sel"
+            )
+            # Display logo
+            st.markdown(f'<div class="team-logo-display">{get_team_logo(away_team, 60)}</div>', unsafe_allow_html=True)
+        
         with st.form("record_match", clear_on_submit=True):
-            col1, col2 = st.columns(2)
+            col3, col4 = st.columns(2)
             
-            with col1:
-                st.markdown("**Home Team**")
-                home_team = st.selectbox("Home", team_names, 
-                    format_func=lambda x: f"{teams[x]['club_name']} ({x})",
-                    label_visibility="collapsed", key="home_sel")
+            with col3:
                 home_score = st.number_input("Home Score", 0, 7, 7, key="home_score")
             
-            with col2:
-                st.markdown("**Away Team**")
-                away_team = st.selectbox("Away", [t for t in team_names if t != home_team],
-                    format_func=lambda x: f"{teams[x]['club_name']} ({x})",
-                    label_visibility="collapsed", key="away_sel")
+            with col4:
                 away_score = st.number_input("Away Score", 0, 7, 0, key="away_score")
             
             st.markdown('<div class="vs-divider">VS</div>', unsafe_allow_html=True)
             
-            col3, col4 = st.columns(2)
-            with col3:
+            col5, col6 = st.columns(2)
+            with col5:
                 match_date = st.date_input("Match Date", value=datetime.today())
-            with col4:
+            with col6:
                 phase = st.selectbox("Phase", ["Apertura", "Clausura"])
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -746,8 +879,8 @@ with tab3:
             home_class = "winner" if home_owner == winner else ""
             away_class = "winner" if away_owner == winner else ""
             
-            home_logo = get_logo_html(home_owner, "32px")
-            away_logo = get_logo_html(away_owner, "32px")
+            home_logo = get_team_logo(home_owner, 32)
+            away_logo = get_team_logo(away_owner, 32)
             
             st.markdown(f"""
             <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
@@ -841,8 +974,8 @@ with tab4:
                     home_class = "winner" if home_owner == winner else ""
                     away_class = "winner" if away_owner == winner else ""
                     
-                    home_logo = get_logo_html(home_owner, "32px")
-                    away_logo = get_logo_html(away_owner, "32px")
+                    home_logo = get_team_logo(home_owner, 32)
+                    away_logo = get_team_logo(away_owner, 32)
                     
                     st.markdown(f"""
                     <div class="match-date">{g["date"]}</div>
