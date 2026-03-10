@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-import json
-import os
 from datetime import datetime
+from supabase import create_client, Client
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLAYER PARK BINHO LEAGUE (SPBL) - Official League Management System
@@ -15,34 +14,71 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── Storage Configuration ─────────────────────────────────────────────────────
-DATA_DIR = "spbl_data"
-TEAMS_FILE = os.path.join(DATA_DIR, "teams.json")
-GAMES_FILE = os.path.join(DATA_DIR, "games.json")
-COASTER_FILE = os.path.join(DATA_DIR, "coaster_cups.json")
+# ── Supabase Configuration ────────────────────────────────────────────────────
 ADMIN_PASSWORD = "jodabean417"
 
-def ensure_dirs():
-    os.makedirs(DATA_DIR, exist_ok=True)
+@st.cache_resource
+def init_supabase() -> Client:
+    """Initialize Supabase client"""
+    url = st.secrets["supabase"]["url"]
+    key = st.secrets["supabase"]["key"]
+    return create_client(url, key)
 
-def load_json(path, default):
-    if os.path.exists(path):
-        with open(path) as f:
-            return json.load(f)
-    return default
+supabase = init_supabase()
 
-def save_json(path, data):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
+# ── Data Loading Functions ────────────────────────────────────────────────────
+def load_teams():
+    """Load teams from Supabase"""
+    response = supabase.table("teams").select("*").execute()
+    teams = {}
+    for team in response.data:
+        teams[team["name"]] = {
+            "joined": team["joined"],
+            "founding_member": team["founding_member"]
+        }
+    return teams
 
-ensure_dirs()
+def load_games():
+    """Load games from Supabase"""
+    response = supabase.table("games").select("*").order("id").execute()
+    return response.data
 
-# ── Initialize League with Founding Members ───────────────────────────────────
-FOUNDING_MEMBERS = [
-    "Skullcore", "Baby", "Sam", "Luken", 
-    "Adam", "Dope", "Rick", "Doug"
-]
+def load_coaster_cups():
+    """Load coaster cups from Supabase"""
+    response = supabase.table("coaster_cups").select("*").order("id").execute()
+    return response.data
 
+def add_game(home, away, home_score, away_score, date, phase):
+    """Add a game to Supabase"""
+    data = {
+        "home": home,
+        "away": away,
+        "home_score": home_score,
+        "away_score": away_score,
+        "date": str(date),
+        "phase": phase
+    }
+    supabase.table("games").insert(data).execute()
+
+def delete_game(game_id):
+    """Delete a game from Supabase"""
+    supabase.table("games").delete().eq("id", game_id).execute()
+
+def add_coaster_cup(month, winner, location, date):
+    """Add a coaster cup to Supabase"""
+    data = {
+        "month": month,
+        "winner": winner,
+        "location": location,
+        "date": str(date)
+    }
+    supabase.table("coaster_cups").insert(data).execute()
+
+def reset_all_games():
+    """Delete all games from Supabase"""
+    supabase.table("games").delete().neq("id", 0).execute()
+
+# ── League Charter ────────────────────────────────────────────────────────────
 LEAGUE_CHARTER = """
 **Article I – Establishment**
 
@@ -103,40 +139,13 @@ If a member wins both the Slayer Park Cup and the Big Dirty Cup, they will be cr
 Any amendments to this Charter require approval by a majority (5 of 8) vote of the founding members. Disputes shall be resolved by majority vote of non-involved members. The spirit of the league shall prioritize competition, sportsmanship, and recorded history.
 """
 
-def initialize_league():
-    """Initialize the league with the 8 founding members"""
-    if not os.path.exists(TEAMS_FILE) or not load_json(TEAMS_FILE, {}):
-        teams = {}
-        for member in FOUNDING_MEMBERS:
-            teams[member] = {
-                "joined": "2025-01-01",
-                "founding_member": True
-            }
-        save_json(TEAMS_FILE, teams)
-        return teams
-    return load_json(TEAMS_FILE, {})
-
-# ── Session State ─────────────────────────────────────────────────────────────
-if "teams" not in st.session_state:
-    st.session_state.teams = initialize_league()
-if "games" not in st.session_state:
-    st.session_state.games = load_json(GAMES_FILE, [])
-if "coaster_cups" not in st.session_state:
-    st.session_state.coaster_cups = load_json(COASTER_FILE, [])
+# ── Session State (now loads from Supabase) ───────────────────────────────────
 if "current_phase" not in st.session_state:
     st.session_state.current_phase = "Apertura"
 
-def save_state():
-    save_json(TEAMS_FILE, st.session_state.teams)
-    save_json(GAMES_FILE, st.session_state.games)
-    save_json(COASTER_FILE, st.session_state.coaster_cups)
-
 # ── Standings Calculator ──────────────────────────────────────────────────────
-def compute_standings(phase_filter=None):
+def compute_standings(games, teams, phase_filter=None):
     """Calculate league standings"""
-    teams = st.session_state.teams
-    games = st.session_state.games
-    
     if phase_filter:
         games = [g for g in games if g.get("phase") == phase_filter]
     
@@ -207,7 +216,6 @@ st.markdown("""
         max-width: 1100px !important;
     }
     
-    /* Header */
     .spbl-header {
         background: linear-gradient(135deg, #38003c, #2b0030);
         border-radius: 12px;
@@ -241,7 +249,6 @@ st.markdown("""
         margin-left: 0.5rem;
     }
     
-    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 0.25rem;
         background: transparent;
@@ -261,7 +268,6 @@ st.markdown("""
         color: #00ff85 !important;
     }
     
-    /* Table Styling */
     .stDataFrame {
         background: #1e1e1e;
         border-radius: 12px;
@@ -332,7 +338,6 @@ st.markdown("""
         background: #2b0030;
     }
     
-    /* Match Cards */
     .match-card {
         background: #1e1e1e;
         border-radius: 8px;
@@ -376,7 +381,6 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     
-    /* Stat Cards */
     .stat-card {
         background: #1e1e1e;
         border-radius: 10px;
@@ -400,7 +404,6 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Coaster Cards */
     .coaster-card {
         background: #1e1e1e;
         border-radius: 10px;
@@ -426,7 +429,6 @@ st.markdown("""
         font-size: 0.85rem;
     }
     
-    /* Charter */
     .charter-content {
         background: #1e1e1e;
         border-radius: 12px;
@@ -474,6 +476,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "Settings"
 ])
 
+# Load data from Supabase
+teams = load_teams()
+games = load_games()
+coaster_cups = load_coaster_cups()
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — LEAGUE TABLE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -487,9 +494,9 @@ with tab1:
     )
     
     if view_phase == "Overall":
-        df = compute_standings()
+        df = compute_standings(games, teams)
     else:
-        df = compute_standings(phase_filter=view_phase)
+        df = compute_standings(games, teams, phase_filter=view_phase)
     
     if df.empty:
         st.info("No matches recorded yet. Record your first match to see the table.")
@@ -518,9 +525,9 @@ with tab1:
 with tab2:
     st.markdown("### Record Match Result")
     
-    teams = list(st.session_state.teams.keys())
+    team_names = list(teams.keys())
     
-    if len(teams) < 2:
+    if len(team_names) < 2:
         st.warning("Insufficient teams in the league.")
     else:
         st.markdown('<div class="record-card">', unsafe_allow_html=True)
@@ -530,12 +537,12 @@ with tab2:
             
             with col1:
                 st.markdown("**Home Team**")
-                home_team = st.selectbox("Home", teams, label_visibility="collapsed", key="home_sel")
+                home_team = st.selectbox("Home", team_names, label_visibility="collapsed", key="home_sel")
                 home_score = st.number_input("Home Score", 0, 7, 7, key="home_score")
             
             with col2:
                 st.markdown("**Away Team**")
-                away_team = st.selectbox("Away", [t for t in teams if t != home_team], label_visibility="collapsed", key="away_sel")
+                away_team = st.selectbox("Away", [t for t in team_names if t != home_team], label_visibility="collapsed", key="away_sel")
                 away_score = st.number_input("Away Score", 0, 7, 0, key="away_score")
             
             st.markdown('<div class="vs-divider">VS</div>', unsafe_allow_html=True)
@@ -557,18 +564,7 @@ with tab2:
                 elif home_team == away_team:
                     st.error("Home and away teams must be different.")
                 else:
-                    match = {
-                        "id": len(st.session_state.games) + 1,
-                        "home": home_team,
-                        "away": away_team,
-                        "home_score": int(home_score),
-                        "away_score": int(away_score),
-                        "date": str(match_date),
-                        "phase": phase
-                    }
-                    st.session_state.games.append(match)
-                    save_state()
-                    
+                    add_game(home_team, away_team, int(home_score), int(away_score), match_date, phase)
                     winner = home_team if home_score > away_score else away_team
                     st.success(f"✓ Match recorded: **{winner}** wins {home_score}–{away_score}")
                     st.rerun()
@@ -585,7 +581,7 @@ with tab3:
     with col1:
         filter_phase = st.selectbox("Filter by Phase", ["All Matches", "Apertura", "Clausura"])
     with col2:
-        if st.session_state.games:
+        if games:
             if st.button("🗑️ Delete", use_container_width=True):
                 st.session_state.show_delete_confirm = True
     
@@ -593,18 +589,16 @@ with tab3:
         with st.form("delete_match_form"):
             st.warning("⚠️ Enter passcode to delete a match")
             passcode = st.text_input("Passcode", type="password")
-            match_to_delete = st.selectbox("Select match to delete", 
-                [f"{g['date']} - {g['home']} {g['home_score']}-{g['away_score']} {g['away']}" 
-                 for g in reversed(st.session_state.games)])
+            match_options = [f"ID {g['id']}: {g['date']} - {g['home']} {g['home_score']}-{g['away_score']} {g['away']}" for g in reversed(games)]
+            match_to_delete = st.selectbox("Select match to delete", match_options)
             
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.form_submit_button("Confirm Delete", use_container_width=True):
                     if passcode == ADMIN_PASSWORD:
-                        match_idx = len(st.session_state.games) - 1 - [f"{g['date']} - {g['home']} {g['home_score']}-{g['away_score']} {g['away']}" 
-                         for g in reversed(st.session_state.games)].index(match_to_delete)
-                        del st.session_state.games[match_idx]
-                        save_state()
+                        # Extract game ID from the option string
+                        game_id = int(match_to_delete.split(":")[0].replace("ID ", ""))
+                        delete_game(game_id)
                         st.session_state.show_delete_confirm = False
                         st.success("Match deleted!")
                         st.rerun()
@@ -615,14 +609,14 @@ with tab3:
                     st.session_state.show_delete_confirm = False
                     st.rerun()
     
-    games = st.session_state.games
+    filtered_games = games
     if filter_phase != "All Matches":
-        games = [g for g in games if g.get("phase") == filter_phase]
+        filtered_games = [g for g in games if g.get("phase") == filter_phase]
     
-    if not games:
+    if not filtered_games:
         st.info("No matches recorded yet.")
     else:
-        for g in reversed(games):
+        for g in reversed(filtered_games):
             winner = g["home"] if g["home_score"] > g["away_score"] else g["away"]
             
             home_class = "winner" if g["home"] == winner else ""
@@ -643,15 +637,13 @@ with tab3:
 with tab4:
     st.markdown("### Team Statistics")
     
-    teams = st.session_state.teams
     if not teams:
         st.info("No teams in the league.")
     else:
         selected = st.selectbox("Select Team", list(teams.keys()))
         
         if selected:
-            team_games = [g for g in st.session_state.games 
-                         if g["home"] == selected or g["away"] == selected]
+            team_games = [g for g in games if g["home"] == selected or g["away"] == selected]
             
             wins = sum(1 for g in team_games if 
                       (g["home"] == selected and g["home_score"] > g["away_score"]) or
@@ -732,14 +724,14 @@ with tab5:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    with st.expander("➕ Record Coaster Cup Winner", expanded=len(st.session_state.coaster_cups) == 0):
+    with st.expander("➕ Record Coaster Cup Winner", expanded=len(coaster_cups) == 0):
         with st.form("add_coaster_cup"):
             cup_month = st.selectbox("Month", [
                 "January", "February", "March", "April", "May", "June",
                 "July", "August", "September", "October", "November", "December"
             ])
             
-            cup_winner = st.selectbox("Winner", list(st.session_state.teams.keys()))
+            cup_winner = st.selectbox("Winner", list(teams.keys()))
             
             cup_location = st.selectbox("Location", [
                 "13 Below Brewery",
@@ -748,20 +740,13 @@ with tab5:
             ])
             
             if st.form_submit_button("Record Coaster Cup", use_container_width=True):
-                cup = {
-                    "month": cup_month,
-                    "winner": cup_winner,
-                    "location": cup_location,
-                    "date": str(datetime.today().date())
-                }
-                st.session_state.coaster_cups.append(cup)
-                save_state()
+                add_coaster_cup(cup_month, cup_winner, cup_location, datetime.today().date())
                 st.success(f"✓ {cup_month} Coaster Cup recorded: **{cup_winner}** wins!")
                 st.rerun()
     
-    if st.session_state.coaster_cups:
+    if coaster_cups:
         cup_wins = {}
-        for cup in st.session_state.coaster_cups:
+        for cup in coaster_cups:
             winner = cup["winner"]
             cup_wins[winner] = cup_wins.get(winner, 0) + 1
         
@@ -779,7 +764,7 @@ with tab5:
         st.markdown("<br>", unsafe_allow_html=True)
         
         st.markdown("#### All Coaster Cups")
-        for cup in reversed(st.session_state.coaster_cups):
+        for cup in reversed(coaster_cups):
             st.markdown(f"""
             <div class="coaster-card winner">
                 <h4>{cup["month"]} — {cup["winner"]}</h4>
@@ -812,7 +797,6 @@ with tab7:
     
     if new_phase != st.session_state.current_phase:
         st.session_state.current_phase = new_phase
-        save_state()
         st.success(f"Phase changed to {new_phase}")
         st.rerun()
     
@@ -820,14 +804,13 @@ with tab7:
     st.markdown("#### Danger Zone")
     
     with st.expander("⚠ Reset All League Data"):
-        st.warning("This requires admin passcode and will permanently delete ALL match results.")
+        st.warning("This requires admin passcode and will permanently delete ALL match results from Supabase.")
         with st.form("reset_form"):
             reset_passcode = st.text_input("Enter passcode", type="password")
             if st.form_submit_button("Reset All Matches", type="secondary"):
                 if reset_passcode == ADMIN_PASSWORD:
-                    st.session_state.games = []
-                    save_state()
-                    st.success("All match data has been cleared.")
+                    reset_all_games()
+                    st.success("All match data has been cleared from Supabase.")
                     st.rerun()
                 else:
                     st.error("Incorrect passcode!")
