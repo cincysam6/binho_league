@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from supabase import create_client, Client
+import base64
+from pathlib import Path
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLAYER PARK BINHO LEAGUE (SPBL) - Official League Management System
@@ -26,6 +28,33 @@ def init_supabase() -> Client:
 
 supabase = init_supabase()
 
+# ── Logo Helper Functions ─────────────────────────────────────────────────────
+def get_logo_path(owner_name):
+    """Get the path to a team's logo"""
+    logo_name = owner_name.lower().replace(" ", "_")
+    return Path(f"assets/logos/{logo_name}.png")
+
+def encode_logo(logo_path):
+    """Encode logo to base64 for HTML display"""
+    try:
+        if logo_path.exists():
+            with open(logo_path, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+        return None
+    except:
+        return None
+
+def get_logo_html(owner_name, size="28px"):
+    """Get HTML img tag for team logo"""
+    logo_path = get_logo_path(owner_name)
+    logo_b64 = encode_logo(logo_path)
+    
+    if logo_b64:
+        return f'<img src="data:image/png;base64,{logo_b64}" style="width:{size};height:{size};border-radius:50%;object-fit:cover;border:2px solid #333;">'
+    else:
+        # Fallback to soccer ball emoji
+        return f'<span style="font-size:{size};">⚽</span>'
+
 # ── Data Loading Functions ────────────────────────────────────────────────────
 def load_teams():
     """Load teams from Supabase"""
@@ -34,7 +63,9 @@ def load_teams():
     for team in response.data:
         teams[team["name"]] = {
             "joined": team["joined"],
-            "founding_member": team["founding_member"]
+            "founding_member": team["founding_member"],
+            "club_name": team.get("club_name", "TBD"),
+            "logo": team.get("logo")
         }
     return teams
 
@@ -139,7 +170,7 @@ If a member wins both the Slayer Park Cup and the Big Dirty Cup, they will be cr
 Any amendments to this Charter require approval by a majority (5 of 8) vote of the founding members. Disputes shall be resolved by majority vote of non-involved members. The spirit of the league shall prioritize competition, sportsmanship, and recorded history.
 """
 
-# ── Session State (now loads from Supabase) ───────────────────────────────────
+# ── Session State ─────────────────────────────────────────────────────────────
 if "current_phase" not in st.session_state:
     st.session_state.current_phase = "Apertura"
 
@@ -150,8 +181,8 @@ def compute_standings(games, teams, phase_filter=None):
         games = [g for g in games if g.get("phase") == phase_filter]
     
     stats = {
-        name: {"MP": 0, "W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0, "Form": []}
-        for name in teams
+        name: {"MP": 0, "W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0, "Form": [], "club_name": data["club_name"]}
+        for name, data in teams.items()
     }
     
     for g in games:
@@ -181,8 +212,13 @@ def compute_standings(games, teams, phase_filter=None):
         gd = s["GF"] - s["GA"]
         pts = (s["W"] * 3) + s["D"]
         form = "".join(s["Form"][-5:])
+        
+        logo_html = get_logo_html(name, "24px")
+        club_display = f"{logo_html} {s['club_name']}"
+        
         rows.append({
-            "Club": f"⚽ {name}",
+            "Club": club_display,
+            "Owner": name,
             "MP": s["MP"],
             "W": s["W"],
             "D": s["D"],
@@ -202,265 +238,357 @@ def compute_standings(games, teams, phase_filter=None):
     
     return df
 
-# ── Dark Theme CSS ────────────────────────────────────────────────────────────
+# ── Modern Dark Theme CSS ─────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800&display=swap');
     
     * { font-family: 'Inter', sans-serif; }
     
-    .main { background-color: #1a1a1a; }
+    .main { background-color: #0d0d0d; }
     
     .block-container {
-        padding: 1rem !important;
+        padding: 0.5rem 1rem 1rem 1rem !important;
         max-width: 1100px !important;
     }
     
+    /* Modern Header */
     .spbl-header {
-        background: linear-gradient(135deg, #38003c, #2b0030);
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, #1a0033 0%, #0d001a 50%, #000000 100%);
+        border-radius: 0;
+        padding: 0;
+        margin: -0.5rem -1rem 2rem -1rem;
         color: white;
-        border-bottom: 3px solid #00ff85;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 255, 133, 0.15);
     }
     
-    .spbl-header h1 {
-        margin: 0;
-        font-size: 1.8rem;
+    .spbl-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #00ff85, #00d4ff, #ff00ff, #00ff85);
+        background-size: 200% 100%;
+        animation: gradientShift 3s linear infinite;
+    }
+    
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 200% 50%; }
+    }
+    
+    .header-content {
+        padding: 2.5rem 2rem 2rem 2rem;
+        position: relative;
+    }
+    
+    .header-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.5rem;
         font-weight: 900;
-        letter-spacing: -0.5px;
+        margin: 0;
+        letter-spacing: 3px;
+        background: linear-gradient(135deg, #00ff85, #00d4ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-transform: uppercase;
+        text-shadow: 0 0 30px rgba(0, 255, 133, 0.5);
     }
     
-    .spbl-header .subtitle {
-        margin-top: 0.5rem;
-        font-size: 0.85rem;
-        opacity: 0.8;
+    @media (max-width: 768px) {
+        .header-title {
+            font-size: 1.6rem;
+            letter-spacing: 1px;
+        }
+        .header-content {
+            padding: 1.5rem 1rem 1.25rem 1rem;
+        }
     }
     
     .phase-badge {
         display: inline-block;
-        background: #00ff85;
-        color: #38003c;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-weight: 700;
-        font-size: 0.7rem;
-        margin-left: 0.5rem;
+        background: linear-gradient(135deg, #00ff85, #00d4ff);
+        color: #000;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-weight: 800;
+        font-size: 0.75rem;
+        margin-top: 0.75rem;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.4);
     }
     
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 0.25rem;
+        gap: 0.5rem;
         background: transparent;
+        border-bottom: 1px solid #222;
+        padding-bottom: 0;
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: #2a2a2a;
-        color: #999;
-        border-radius: 8px;
-        padding: 0.6rem 1rem;
-        font-weight: 600;
+        background: transparent;
+        color: #666;
+        border-radius: 0;
+        padding: 0.8rem 1.2rem;
+        font-weight: 700;
         font-size: 0.85rem;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #00ff85;
+        border-bottom-color: #00ff85;
     }
     
     .stTabs [aria-selected="true"] {
-        background: #38003c !important;
+        background: transparent !important;
         color: #00ff85 !important;
+        border-bottom-color: #00ff85 !important;
     }
     
+    /* Table Styling */
     .stDataFrame {
-        background: #1e1e1e;
+        background: #1a1a1a;
         border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 255, 133, 0.1);
     }
     
     .stDataFrame [data-testid="stDataFrameResizable"] {
-        background: #1e1e1e;
+        background: #1a1a1a;
     }
     
     .stDataFrame thead tr th {
-        background-color: #2a2a2a !important;
-        color: #999 !important;
-        font-weight: 700 !important;
-        font-size: 0.75rem !important;
+        background-color: #0d0d0d !important;
+        color: #00ff85 !important;
+        font-weight: 800 !important;
+        font-size: 0.7rem !important;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 1rem 0.75rem !important;
-        border-bottom: 1px solid #333 !important;
+        letter-spacing: 1px;
+        padding: 1.2rem 0.75rem !important;
+        border-bottom: 2px solid #00ff85 !important;
     }
     
     .stDataFrame tbody tr td {
-        background-color: #1e1e1e !important;
+        background-color: #1a1a1a !important;
         color: #fff !important;
         font-size: 0.9rem !important;
-        padding: 1rem 0.75rem !important;
+        padding: 1.2rem 0.75rem !important;
         border-bottom: 1px solid #2a2a2a !important;
     }
     
     .stDataFrame tbody tr:hover td {
-        background-color: #252525 !important;
+        background-color: #222 !important;
+        box-shadow: inset 0 0 20px rgba(0, 255, 133, 0.1);
     }
     
     .stDataFrame tbody tr:first-child td {
-        border-left: 3px solid #00ff85;
+        border-left: 4px solid #00ff85;
+        box-shadow: inset 0 0 30px rgba(0, 255, 133, 0.15);
     }
     
     .stDataFrame tbody tr:last-child td {
-        border-left: 3px solid #ff4458;
+        border-left: 4px solid #ff4458;
+        box-shadow: inset 0 0 30px rgba(255, 68, 88, 0.15);
     }
     
     h3 {
-        color: #fff;
+        color: #00ff85;
         font-weight: 800;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 1.5rem;
+        letter-spacing: 1px;
     }
     
     .stSelectbox label, .stNumberInput label, .stDateInput label {
-        color: #999 !important;
+        color: #00ff85 !important;
+        font-weight: 600 !important;
     }
     
     .stSelectbox > div > div, .stNumberInput > div > div, .stDateInput > div > div {
-        background: #2a2a2a;
+        background: #1a1a1a;
         color: #fff;
-        border: 1px solid #444;
+        border: 1px solid #333;
     }
     
     .stButton > button {
-        background: #38003c;
-        color: #00ff85;
-        font-weight: 700;
+        background: linear-gradient(135deg, #00ff85, #00d4ff);
+        color: #000;
+        font-weight: 800;
         border-radius: 8px;
         padding: 0.75rem 1.5rem;
         border: none;
+        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.3);
+        transition: all 0.3s;
     }
     
     .stButton > button:hover {
-        background: #2b0030;
+        box-shadow: 0 6px 25px rgba(0, 255, 133, 0.5);
+        transform: translateY(-2px);
     }
     
+    /* Match Cards with Logos */
     .match-card {
-        background: #1e1e1e;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        border-left: 3px solid #38003c;
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 1.2rem;
+        margin-bottom: 1rem;
+        border-left: 3px solid #00ff85;
         display: grid;
         grid-template-columns: 1fr auto 1fr;
         align-items: center;
-        gap: 1rem;
+        gap: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0, 255, 133, 0.1);
+        transition: all 0.3s;
     }
     
-    .match-card .team {
+    .match-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 20px rgba(0, 255, 133, 0.2);
+    }
+    
+    .match-team {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         color: #fff;
     }
     
-    .match-card .home { text-align: right; }
-    .match-card .away { text-align: left; }
+    .match-team.home {
+        justify-content: flex-end;
+    }
+    
+    .match-team.away {
+        justify-content: flex-start;
+    }
     
     .match-card .score {
-        background: #38003c;
-        color: #00ff85;
-        font-weight: 800;
-        font-size: 1.2rem;
-        padding: 0.4rem 0.9rem;
-        border-radius: 6px;
-        letter-spacing: 2px;
+        background: linear-gradient(135deg, #00ff85, #00d4ff);
+        color: #000;
+        font-weight: 900;
+        font-size: 1.3rem;
+        padding: 0.5rem 1.2rem;
+        border-radius: 8px;
+        letter-spacing: 3px;
+        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.3);
     }
     
     .match-card .winner {
         color: #00ff85;
+        text-shadow: 0 0 10px rgba(0, 255, 133, 0.5);
     }
     
     .match-date {
-        font-size: 0.7rem;
-        color: #999;
+        font-size: 0.75rem;
+        color: #666;
         margin-bottom: 0.5rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
+        font-weight: 600;
     }
     
+    /* Stat Cards */
     .stat-card {
-        background: #1e1e1e;
-        border-radius: 10px;
-        padding: 1.25rem 1rem;
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 1.5rem 1rem;
         text-align: center;
         border-top: 3px solid #00ff85;
+        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.1);
     }
     
     .stat-card .value {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #00ff85;
+        font-size: 2.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #00ff85, #00d4ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         line-height: 1;
     }
     
     .stat-card .label {
-        font-size: 0.7rem;
-        color: #999;
-        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        color: #666;
+        margin-top: 0.75rem;
         text-transform: uppercase;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: 1px;
     }
     
+    /* Coaster Cards */
     .coaster-card {
-        background: #1e1e1e;
-        border-radius: 10px;
+        background: #1a1a1a;
+        border-radius: 12px;
         padding: 1.25rem 1.5rem;
         margin-bottom: 0.75rem;
-        border-left: 4px solid #444;
+        border-left: 4px solid #333;
+        transition: all 0.3s;
+    }
+    
+    .coaster-card:hover {
+        transform: translateX(5px);
     }
     
     .coaster-card.winner {
         border-left-color: #00ff85;
-        background: linear-gradient(90deg, rgba(0,255,135,0.1), #1e1e1e);
+        background: linear-gradient(90deg, rgba(0,255,135,0.1), #1a1a1a);
+        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.15);
     }
     
     .coaster-card h4 {
         margin: 0 0 0.5rem 0;
-        font-size: 1rem;
+        font-size: 1.1rem;
         font-weight: 700;
         color: #fff;
     }
     
     .coaster-card .location {
-        color: #999;
+        color: #666;
         font-size: 0.85rem;
     }
     
+    /* Charter */
     .charter-content {
-        background: #1e1e1e;
+        background: #1a1a1a;
         border-radius: 12px;
-        padding: 1.5rem;
-        line-height: 1.7;
-        color: #ddd;
+        padding: 2rem;
+        line-height: 1.8;
+        color: #ccc;
+        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.1);
     }
     
     .record-card {
-        background: #1e1e1e;
+        background: #1a1a1a;
         border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(0, 255, 133, 0.15);
     }
     
     .vs-divider {
         text-align: center;
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: #444;
-        margin: 0.75rem 0;
+        font-size: 1.8rem;
+        font-weight: 900;
+        color: #333;
+        margin: 1rem 0;
+        letter-spacing: 4px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# ── Modern Header ─────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="spbl-header">
-    <h1>SLAYER PARK BINHO LEAGUE</h1>
-    <div class="subtitle">
-        Official League Management System
-        <span class="phase-badge">{st.session_state.current_phase.upper()}</span>
+    <div class="header-content">
+        <div class="header-title">SLAYER PARK BINHO LEAGUE</div>
+        <div class="phase-badge">{st.session_state.current_phase.upper()}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -501,23 +629,10 @@ with tab1:
     if df.empty:
         st.info("No matches recorded yet. Record your first match to see the table.")
     else:
-        st.dataframe(
-            df,
-            use_container_width=True,
-            height=min(600, 100 + len(df) * 50),
-            column_config={
-                "Club": st.column_config.TextColumn("Club", width="large"),
-                "MP": st.column_config.NumberColumn("MP", width="small"),
-                "W": st.column_config.NumberColumn("W", width="small"),
-                "D": st.column_config.NumberColumn("D", width="small"),
-                "L": st.column_config.NumberColumn("L", width="small"),
-                "GF": st.column_config.NumberColumn("GF", width="small"),
-                "GA": st.column_config.NumberColumn("GA", width="small"),
-                "GD": st.column_config.NumberColumn("GD", width="small"),
-                "Pts": st.column_config.NumberColumn("Pts", width="small"),
-                "Last 5": st.column_config.TextColumn("Last 5", width="medium"),
-            }
-        )
+        # Display without Club column (has HTML)
+        display_df = df.copy()
+        
+        st.markdown(display_df.to_html(escape=False, index=True), unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — RECORD RESULT
@@ -537,12 +652,16 @@ with tab2:
             
             with col1:
                 st.markdown("**Home Team**")
-                home_team = st.selectbox("Home", team_names, label_visibility="collapsed", key="home_sel")
+                home_team = st.selectbox("Home", team_names, 
+                    format_func=lambda x: f"{teams[x]['club_name']} ({x})",
+                    label_visibility="collapsed", key="home_sel")
                 home_score = st.number_input("Home Score", 0, 7, 7, key="home_score")
             
             with col2:
                 st.markdown("**Away Team**")
-                away_team = st.selectbox("Away", [t for t in team_names if t != home_team], label_visibility="collapsed", key="away_sel")
+                away_team = st.selectbox("Away", [t for t in team_names if t != home_team],
+                    format_func=lambda x: f"{teams[x]['club_name']} ({x})",
+                    label_visibility="collapsed", key="away_sel")
                 away_score = st.number_input("Away Score", 0, 7, 0, key="away_score")
             
             st.markdown('<div class="vs-divider">VS</div>', unsafe_allow_html=True)
@@ -565,8 +684,9 @@ with tab2:
                     st.error("Home and away teams must be different.")
                 else:
                     add_game(home_team, away_team, int(home_score), int(away_score), match_date, phase)
-                    winner = home_team if home_score > away_score else away_team
-                    st.success(f"✓ Match recorded: **{winner}** wins {home_score}–{away_score}")
+                    winner_name = home_team if home_score > away_score else away_team
+                    winner_club = teams[winner_name]["club_name"]
+                    st.success(f"✓ Match recorded: **{winner_club}** wins {home_score}–{away_score}")
                     st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -589,14 +709,13 @@ with tab3:
         with st.form("delete_match_form"):
             st.warning("⚠️ Enter passcode to delete a match")
             passcode = st.text_input("Passcode", type="password")
-            match_options = [f"ID {g['id']}: {g['date']} - {g['home']} {g['home_score']}-{g['away_score']} {g['away']}" for g in reversed(games)]
+            match_options = [f"ID {g['id']}: {g['date']} - {teams[g['home']]['club_name']} {g['home_score']}-{g['away_score']} {teams[g['away']]['club_name']}" for g in reversed(games)]
             match_to_delete = st.selectbox("Select match to delete", match_options)
             
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.form_submit_button("Confirm Delete", use_container_width=True):
                     if passcode == ADMIN_PASSWORD:
-                        # Extract game ID from the option string
                         game_id = int(match_to_delete.split(":")[0].replace("ID ", ""))
                         delete_game(game_id)
                         st.session_state.show_delete_confirm = False
@@ -617,17 +736,31 @@ with tab3:
         st.info("No matches recorded yet.")
     else:
         for g in reversed(filtered_games):
-            winner = g["home"] if g["home_score"] > g["away_score"] else g["away"]
+            home_owner = g["home"]
+            away_owner = g["away"]
+            home_club = teams[home_owner]["club_name"]
+            away_club = teams[away_owner]["club_name"]
             
-            home_class = "winner" if g["home"] == winner else ""
-            away_class = "winner" if g["away"] == winner else ""
+            winner = home_owner if g["home_score"] > g["away_score"] else away_owner
+            
+            home_class = "winner" if home_owner == winner else ""
+            away_class = "winner" if away_owner == winner else ""
+            
+            home_logo = get_logo_html(home_owner, "32px")
+            away_logo = get_logo_html(away_owner, "32px")
             
             st.markdown(f"""
             <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
             <div class="match-card">
-                <div class="team home {home_class}">{g["home"]}</div>
+                <div class="match-team home {home_class}">
+                    <span>{home_club}</span>
+                    {home_logo}
+                </div>
                 <div class="score">{g["home_score"]} – {g["away_score"]}</div>
-                <div class="team away {away_class}">{g["away"]}</div>
+                <div class="match-team away {away_class}">
+                    {away_logo}
+                    <span>{away_club}</span>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -640,7 +773,8 @@ with tab4:
     if not teams:
         st.info("No teams in the league.")
     else:
-        selected = st.selectbox("Select Team", list(teams.keys()))
+        selected = st.selectbox("Select Team", list(teams.keys()),
+            format_func=lambda x: f"{teams[x]['club_name']} ({x})")
         
         if selected:
             team_games = [g for g in games if g["home"] == selected or g["away"] == selected]
@@ -697,17 +831,31 @@ with tab4:
             if team_games:
                 st.markdown("#### Recent Results")
                 for g in reversed(team_games[-5:]):
-                    winner = g["home"] if g["home_score"] > g["away_score"] else g["away"]
+                    home_owner = g["home"]
+                    away_owner = g["away"]
+                    home_club = teams[home_owner]["club_name"]
+                    away_club = teams[away_owner]["club_name"]
                     
-                    home_class = "winner" if g["home"] == winner else ""
-                    away_class = "winner" if g["away"] == winner else ""
+                    winner = home_owner if g["home_score"] > g["away_score"] else away_owner
+                    
+                    home_class = "winner" if home_owner == winner else ""
+                    away_class = "winner" if away_owner == winner else ""
+                    
+                    home_logo = get_logo_html(home_owner, "32px")
+                    away_logo = get_logo_html(away_owner, "32px")
                     
                     st.markdown(f"""
                     <div class="match-date">{g["date"]}</div>
                     <div class="match-card">
-                        <div class="team home {home_class}">{g["home"]}</div>
+                        <div class="match-team home {home_class}">
+                            <span>{home_club}</span>
+                            {home_logo}
+                        </div>
                         <div class="score">{g["home_score"]} – {g["away_score"]}</div>
-                        <div class="team away {away_class}">{g["away"]}</div>
+                        <div class="match-team away {away_class}">
+                            {away_logo}
+                            <span>{away_club}</span>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -731,7 +879,8 @@ with tab5:
                 "July", "August", "September", "October", "November", "December"
             ])
             
-            cup_winner = st.selectbox("Winner", list(teams.keys()))
+            cup_winner = st.selectbox("Winner", list(teams.keys()),
+                format_func=lambda x: f"{teams[x]['club_name']} ({x})")
             
             cup_location = st.selectbox("Location", [
                 "13 Below Brewery",
@@ -741,7 +890,7 @@ with tab5:
             
             if st.form_submit_button("Record Coaster Cup", use_container_width=True):
                 add_coaster_cup(cup_month, cup_winner, cup_location, datetime.today().date())
-                st.success(f"✓ {cup_month} Coaster Cup recorded: **{cup_winner}** wins!")
+                st.success(f"✓ {cup_month} Coaster Cup recorded: **{teams[cup_winner]['club_name']}** wins!")
                 st.rerun()
     
     if coaster_cups:
@@ -755,9 +904,10 @@ with tab5:
         
         for i, (winner, wins) in enumerate(sorted_winners, 1):
             badge = "🏆" if i == 1 else f"{i}."
+            club_name = teams[winner]["club_name"]
             st.markdown(f"""
             <div class="coaster-card {'winner' if i == 1 else ''}">
-                <h4>{badge} {winner} — {wins} Cup{"s" if wins != 1 else ""}</h4>
+                <h4>{badge} {club_name} — {wins} Cup{"s" if wins != 1 else ""}</h4>
             </div>
             """, unsafe_allow_html=True)
         
@@ -765,9 +915,10 @@ with tab5:
         
         st.markdown("#### All Coaster Cups")
         for cup in reversed(coaster_cups):
+            club_name = teams[cup["winner"]]["club_name"]
             st.markdown(f"""
             <div class="coaster-card winner">
-                <h4>{cup["month"]} — {cup["winner"]}</h4>
+                <h4>{cup["month"]} — {club_name}</h4>
                 <div class="location">📍 {cup["location"]} • {cup["date"]}</div>
             </div>
             """, unsafe_allow_html=True)
