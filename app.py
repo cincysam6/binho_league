@@ -30,27 +30,50 @@ supabase = init_supabase()
 
 # ── Logo Helper Functions ─────────────────────────────────────────────────────
 def get_logo_path(owner_name):
-    """Get the path to a team's logo"""
+    """Get the path to a team's logo - checks both .png and .jpeg"""
     logo_name = owner_name.lower().replace(" ", "_")
-    return Path(f"assets/logos/{logo_name}.png")
+    
+    # Try .png first
+    png_path = Path(f"assets/logos/{logo_name}.png")
+    if png_path.exists():
+        return png_path
+    
+    # Try .jpeg
+    jpeg_path = Path(f"assets/logos/{logo_name}.jpeg")
+    if jpeg_path.exists():
+        return jpeg_path
+    
+    # Try .jpg
+    jpg_path = Path(f"assets/logos/{logo_name}.jpg")
+    if jpg_path.exists():
+        return jpg_path
+    
+    return None
 
 @st.cache_data
 def encode_logo(owner_name):
     """Encode logo to base64 for display"""
     logo_path = get_logo_path(owner_name)
-    try:
-        if logo_path.exists():
+    if logo_path and logo_path.exists():
+        try:
             with open(logo_path, "rb") as f:
-                return base64.b64encode(f.read()).decode()
-    except Exception as e:
-        st.warning(f"Error loading logo for {owner_name}: {e}")
+                encoded = base64.b64encode(f.read()).decode()
+                # Determine mime type
+                ext = logo_path.suffix.lower()
+                if ext == '.png':
+                    mime = 'image/png'
+                else:
+                    mime = 'image/jpeg'
+                return f"data:{mime};base64,{encoded}"
+        except Exception as e:
+            print(f"Error loading logo for {owner_name}: {e}")
     return None
 
-def get_team_logo(owner_name, size=40):
-    """Get team logo as Streamlit image or emoji fallback"""
-    logo_b64 = encode_logo(owner_name)
-    if logo_b64:
-        return f'<img src="data:image/png;base64,{logo_b64}" width="{size}" height="{size}" style="border-radius: 50%; object-fit: cover; border: 2px solid #333;">'
+def get_team_logo_img(owner_name, size=40):
+    """Get team logo as img tag or emoji fallback"""
+    logo_data = encode_logo(owner_name)
+    if logo_data:
+        return f'<img src="{logo_data}" width="{size}" height="{size}" style="border-radius: 50%; object-fit: cover; border: 2px solid #333;">'
     return f'<span style="font-size: {size}px;">⚽</span>'
 
 # ── Data Loading Functions ────────────────────────────────────────────────────
@@ -212,9 +235,8 @@ def compute_standings(games, teams, phase_filter=None):
         form = "".join(s["Form"][-5:])
         
         rows.append({
-            "Logo": name,  # Will be replaced with logo in display
-            "Club": s['club_name'],
             "Owner": name,
+            "Club": s['club_name'],
             "MP": s["MP"],
             "W": s["W"],
             "D": s["D"],
@@ -338,13 +360,14 @@ st.markdown("""
     .pl-table-wrapper {
         background: #1a1a1a;
         border-radius: 12px;
-        overflow: hidden;
+        overflow-x: auto;
         margin: 1rem 0;
         box-shadow: 0 4px 20px rgba(0, 255, 133, 0.1);
     }
     
     .pl-table {
         width: 100%;
+        min-width: 800px;
         border-collapse: collapse;
     }
     
@@ -534,15 +557,9 @@ st.markdown("""
     }
     
     /* Team selector with logo */
-    .team-selector {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-    
     .team-logo-display {
-        flex-shrink: 0;
+        margin-top: 0.5rem;
+        text-align: center;
     }
     
     /* Stat Cards */
@@ -678,7 +695,7 @@ with tab1:
     if df.empty:
         st.info("No matches recorded yet. Record your first match to see the table.")
     else:
-        # Build Premier League style table with logos
+        # Build Premier League style table with logos using st.components.v1.html
         rows_html = ""
         for idx, row in df.iterrows():
             rank = idx + 1
@@ -699,7 +716,7 @@ with tab1:
                 gd_class = "gd-neutral"
                 gd_text = "0"
             
-            logo_html = get_team_logo(row['Logo'], 32)
+            logo_html = get_team_logo_img(row['Owner'], 32)
             
             rows_html += f"""
             <tr class="{rank_class}">
@@ -720,33 +737,118 @@ with tab1:
             """
         
         table_html = f"""
-        <div class="pl-table-wrapper">
-            <table class="pl-table">
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th></th>
-                        <th>Club</th>
-                        <th>Owner</th>
-                        <th>MP</th>
-                        <th>W</th>
-                        <th>D</th>
-                        <th>L</th>
-                        <th>GF</th>
-                        <th>GA</th>
-                        <th>GD</th>
-                        <th>Pts</th>
-                        <th>Last 5</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_html}
-                </tbody>
-            </table>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ margin: 0; padding: 0; background: transparent; }}
+                .pl-table-wrapper {{
+                    background: #1a1a1a;
+                    border-radius: 12px;
+                    overflow-x: auto;
+                    box-shadow: 0 4px 20px rgba(0, 255, 133, 0.1);
+                }}
+                .pl-table {{
+                    width: 100%;
+                    min-width: 800px;
+                    border-collapse: collapse;
+                    font-family: 'Inter', sans-serif;
+                }}
+                .pl-table thead {{
+                    background: #0d0d0d;
+                }}
+                .pl-table th {{
+                    padding: 1rem 0.75rem;
+                    text-align: center;
+                    font-weight: 800;
+                    font-size: 0.7rem;
+                    color: #00ff85;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    border-bottom: 2px solid #00ff85;
+                }}
+                .pl-table th:first-child {{ text-align: center; width: 50px; }}
+                .pl-table th:nth-child(2) {{ width: 60px; }}
+                .pl-table th:nth-child(3) {{ text-align: left; padding-left: 1rem; }}
+                .pl-table tbody tr {{
+                    border-bottom: 1px solid #2a2a2a;
+                    transition: background 0.2s;
+                }}
+                .pl-table tbody tr:hover {{
+                    background: #222;
+                    box-shadow: inset 0 0 20px rgba(0, 255, 133, 0.1);
+                }}
+                .pl-table tbody tr.rank-1 {{
+                    border-left: 4px solid #00ff85;
+                    box-shadow: inset 0 0 30px rgba(0, 255, 133, 0.15);
+                }}
+                .pl-table tbody tr.rank-last {{
+                    border-left: 4px solid #ff4458;
+                    box-shadow: inset 0 0 30px rgba(255, 68, 88, 0.15);
+                }}
+                .pl-table td {{
+                    padding: 1.2rem 0.75rem;
+                    text-align: center;
+                    font-size: 0.9rem;
+                    color: #fff;
+                    font-weight: 500;
+                    background: #1a1a1a;
+                }}
+                .pl-table td:first-child {{
+                    color: #666;
+                    font-weight: 700;
+                    font-size: 0.85rem;
+                }}
+                .pl-table td:nth-child(2) {{ text-align: center; }}
+                .pl-table td:nth-child(3) {{
+                    text-align: left;
+                    padding-left: 1rem;
+                    font-weight: 600;
+                }}
+                .pl-table td:nth-child(4) {{
+                    text-align: left;
+                    color: #999;
+                }}
+                .pl-table .pts-col {{
+                    font-weight: 700;
+                    color: #fff;
+                }}
+                .gd-positive {{ color: #00ff85; font-weight: 700; }}
+                .gd-negative {{ color: #ff4458; font-weight: 700; }}
+                .gd-neutral {{ color: #666; font-weight: 600; }}
+            </style>
+        </head>
+        <body>
+            <div class="pl-table-wrapper">
+                <table class="pl-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th></th>
+                            <th>Club</th>
+                            <th>Owner</th>
+                            <th>MP</th>
+                            <th>W</th>
+                            <th>D</th>
+                            <th>L</th>
+                            <th>GF</th>
+                            <th>GA</th>
+                            <th>GD</th>
+                            <th>Pts</th>
+                            <th>Last 5</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_html}
+                    </tbody>
+                </table>
+            </div>
+        </body>
+        </html>
         """
         
-        st.markdown(table_html, unsafe_allow_html=True)
+        # Use components to render HTML properly
+        st.components.v1.html(table_html, height=min(700, 150 + len(df) * 60), scrolling=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — RECORD RESULT
@@ -774,7 +876,7 @@ with tab2:
                 key="home_sel"
             )
             # Display logo
-            st.markdown(f'<div class="team-logo-display">{get_team_logo(home_team, 60)}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="team-logo-display">{get_team_logo_img(home_team, 60)}</div>', unsafe_allow_html=True)
         
         with col2:
             st.markdown("**Away Team**")
@@ -786,7 +888,7 @@ with tab2:
                 key="away_sel"
             )
             # Display logo
-            st.markdown(f'<div class="team-logo-display">{get_team_logo(away_team, 60)}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="team-logo-display">{get_team_logo_img(away_team, 60)}</div>', unsafe_allow_html=True)
         
         with st.form("record_match", clear_on_submit=True):
             col3, col4 = st.columns(2)
@@ -879,8 +981,8 @@ with tab3:
             home_class = "winner" if home_owner == winner else ""
             away_class = "winner" if away_owner == winner else ""
             
-            home_logo = get_team_logo(home_owner, 32)
-            away_logo = get_team_logo(away_owner, 32)
+            home_logo = get_team_logo_img(home_owner, 32)
+            away_logo = get_team_logo_img(away_owner, 32)
             
             st.markdown(f"""
             <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
@@ -974,8 +1076,8 @@ with tab4:
                     home_class = "winner" if home_owner == winner else ""
                     away_class = "winner" if away_owner == winner else ""
                     
-                    home_logo = get_team_logo(home_owner, 32)
-                    away_logo = get_team_logo(away_owner, 32)
+                    home_logo = get_team_logo_img(home_owner, 32)
+                    away_logo = get_team_logo_img(away_owner, 32)
                     
                     st.markdown(f"""
                     <div class="match-date">{g["date"]}</div>
