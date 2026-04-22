@@ -254,399 +254,420 @@ def compute_standings(games, teams, phase_filter=None):
     
     return df
 
-# ── Premier League Dark Theme CSS ─────────────────────────────────────────────
+# ── Modern Slate/Indigo Theme CSS ─────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600;700;800&display=swap');
-    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
     * { font-family: 'Inter', sans-serif; }
-    
-    .main { background-color: #0d0d0d; }
-    
+
+    .main { background-color: #0c111d; }
+
     .block-container {
         padding: 0.5rem 1rem 1rem 1rem !important;
         max-width: 1100px !important;
     }
-    
-    /* Modern Header */
+
+    /* ── Header ── */
     .spbl-header {
-        background: linear-gradient(135deg, #1a0033 0%, #0d001a 50%, #000000 100%);
+        background: linear-gradient(160deg, #0f1f4e 0%, #0c1635 50%, #080d1a 100%);
         border-radius: 0;
         padding: 0;
         margin: -0.5rem -1rem 2rem -1rem;
         color: white;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 8px 32px rgba(0, 255, 133, 0.15);
+        box-shadow: 0 8px 40px rgba(67, 97, 238, 0.25);
     }
-    
+
     .spbl-header::before {
         content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #00ff85, #00d4ff, #ff00ff, #00ff85);
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #4361ee, #06b6d4, #818cf8, #4361ee);
         background-size: 200% 100%;
-        animation: gradientShift 3s linear infinite;
+        animation: gradientShift 4s linear infinite;
     }
-    
+
     @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
+        0%   { background-position: 0% 50%; }
         100% { background-position: 200% 50%; }
     }
-    
+
     .header-content {
         padding: 2.5rem 2rem;
         position: relative;
         text-align: center;
     }
-    
+
     .header-title {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 2.8rem;
+        font-size: 2.5rem;
         font-weight: 900;
         margin: 0;
         letter-spacing: 4px;
-        background: linear-gradient(135deg, #00ff85, #00d4ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #ffffff;
         text-transform: uppercase;
-        text-shadow: 0 0 30px rgba(0, 255, 133, 0.5);
     }
-    
+
+    .header-subtitle {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #7b8ff7;
+        margin-top: 0.5rem;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+    }
+
     @media (max-width: 768px) {
-        .header-title {
-            font-size: 1.5rem;
-            letter-spacing: 2px;
-        }
-        .header-content {
-            padding: 1.5rem 1rem;
-        }
+        .header-title { font-size: 1.5rem; letter-spacing: 2px; }
+        .header-content { padding: 1.5rem 1rem; }
     }
-    
-    /* Tabs */
+
+    /* ── Tabs ── */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 0.5rem;
+        gap: 0.25rem;
         background: transparent;
-        border-bottom: 1px solid #222;
+        border-bottom: 1px solid #1e2a3a;
         padding-bottom: 0;
     }
-    
+
     .stTabs [data-baseweb="tab"] {
         background: transparent;
-        color: #666;
-        border-radius: 0;
-        padding: 0.8rem 1.2rem;
-        font-weight: 700;
+        color: #4a5568;
+        border-radius: 4px 4px 0 0;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
         font-size: 0.85rem;
-        border-bottom: 3px solid transparent;
-        transition: all 0.3s;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
     }
-    
+
     .stTabs [data-baseweb="tab"]:hover {
-        color: #00ff85;
-        border-bottom-color: #00ff85;
+        color: #e2e8f0;
+        background: rgba(67, 97, 238, 0.08);
     }
-    
+
     .stTabs [aria-selected="true"] {
-        background: transparent !important;
-        color: #00ff85 !important;
-        border-bottom-color: #00ff85 !important;
+        background: rgba(67, 97, 238, 0.1) !important;
+        color: #818cf8 !important;
+        border-bottom-color: #4361ee !important;
     }
-    
-    /* Premier League Table */
+
+    /* ── Standings Table ── */
     .pl-table-wrapper {
-        background: #1a1a1a;
+        background: #131929;
         border-radius: 12px;
         overflow-x: auto;
         margin: 1rem 0;
-        box-shadow: 0 4px 20px rgba(0, 255, 133, 0.1);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     }
-    
+
     .pl-table {
         width: 100%;
         min-width: 800px;
         border-collapse: collapse;
     }
-    
-    .pl-table thead {
-        background: #0d0d0d;
-    }
-    
+
+    .pl-table thead { background: #0c111d; }
+
     .pl-table th {
+        padding: 0.875rem 0.75rem;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.68rem;
+        color: #8b96b0;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        border-bottom: 1px solid #1e2a3a;
+    }
+
+    .pl-table th:first-child { text-align: center; width: 50px; }
+    .pl-table th:nth-child(2) { width: 60px; }
+    .pl-table th:nth-child(3) { text-align: left; padding-left: 1rem; }
+
+    .pl-table tbody tr {
+        border-bottom: 1px solid #1e2a3a;
+        transition: background 0.15s;
+    }
+
+    .pl-table tbody tr:hover { background: rgba(67, 97, 238, 0.06); }
+
+    .pl-table tbody tr.rank-1  { border-left: 3px solid #10b981; }
+    .pl-table tbody tr.rank-last { border-left: 3px solid #f43f5e; }
+
+    .pl-table td {
         padding: 1rem 0.75rem;
         text-align: center;
-        font-weight: 800;
-        font-size: 0.7rem;
-        color: #00ff85;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        border-bottom: 2px solid #00ff85;
-    }
-    
-    .pl-table th:first-child {
-        text-align: center;
-        width: 50px;
-    }
-    
-    .pl-table th:nth-child(2) {
-        width: 60px;
-    }
-    
-    .pl-table th:nth-child(3) {
-        text-align: left;
-        padding-left: 1rem;
-    }
-    
-    .pl-table tbody tr {
-        border-bottom: 1px solid #2a2a2a;
-        transition: background 0.2s;
-    }
-    
-    .pl-table tbody tr:hover {
-        background: #222;
-        box-shadow: inset 0 0 20px rgba(0, 255, 133, 0.1);
-    }
-    
-    .pl-table tbody tr.rank-1 {
-        border-left: 4px solid #00ff85;
-        box-shadow: inset 0 0 30px rgba(0, 255, 133, 0.15);
-    }
-    
-    .pl-table tbody tr.rank-last {
-        border-left: 4px solid #ff4458;
-        box-shadow: inset 0 0 30px rgba(255, 68, 88, 0.15);
-    }
-    
-    .pl-table td {
-        padding: 1.2rem 0.75rem;
-        text-align: center;
         font-size: 0.9rem;
-        color: #fff;
+        color: #e2e8f0;
         font-weight: 500;
-        background: #1a1a1a;
+        background: #131929;
     }
-    
-    .pl-table td:first-child {
-        color: #666;
-        font-weight: 700;
-        font-size: 0.85rem;
-    }
-    
-    .pl-table td:nth-child(2) {
-        text-align: center;
-    }
-    
-    .pl-table td:nth-child(3) {
-        text-align: left;
-        padding-left: 1rem;
-        font-weight: 600;
-    }
-    
-    .pl-table td:nth-child(4) {
-        text-align: left;
-        color: #999;
-    }
-    
-    .pl-table .pts-col {
-        font-weight: 700;
+
+    .pl-table td:first-child { color: #4a5568; font-weight: 700; font-size: 0.85rem; }
+    .pl-table td:nth-child(2) { text-align: center; }
+    .pl-table td:nth-child(3) { text-align: left; padding-left: 1rem; font-weight: 700; color: #f0f4ff; }
+    .pl-table td:nth-child(4) { text-align: left; color: #4a5568; font-size: 0.82rem; }
+
+    .pl-table .pts-col { font-weight: 800; color: #f0f4ff; font-size: 1rem; }
+
+    .gd-positive { color: #10b981; font-weight: 700; }
+    .gd-negative { color: #f43f5e; font-weight: 700; }
+    .gd-neutral  { color: #4a5568; font-weight: 600; }
+
+    /* ── Form Badges ── */
+    .form-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        margin: 0 1px;
         color: #fff;
     }
-    
-    .gd-positive { color: #00ff85; font-weight: 700; }
-    .gd-negative { color: #ff4458; font-weight: 700; }
-    .gd-neutral { color: #666; font-weight: 600; }
-    
+    .form-w { background: #10b981; }
+    .form-d { background: #f59e0b; }
+    .form-l { background: #f43f5e; }
+
+    /* ── Section headings ── */
     h3 {
-        color: #00ff85;
+        color: #f0f4ff;
         font-weight: 800;
         margin-bottom: 1.5rem;
-        font-size: 1.5rem;
-        letter-spacing: 1px;
+        font-size: 1.4rem;
+        letter-spacing: 0.5px;
     }
-    
+
+    /* ── Form inputs ── */
     .stSelectbox label, .stNumberInput label, .stDateInput label {
-        color: #00ff85 !important;
+        color: #8b96b0 !important;
         font-weight: 600 !important;
+        font-size: 0.82rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
     }
-    
+
     .stSelectbox > div > div, .stNumberInput > div > div, .stDateInput > div > div {
-        background: #1a1a1a;
-        color: #fff;
-        border: 1px solid #333;
+        background: #131929;
+        color: #e2e8f0;
+        border: 1px solid #2d3748;
     }
-    
+
+    /* ── Buttons ── */
     .stButton > button {
-        background: linear-gradient(135deg, #00ff85, #00d4ff);
-        color: #000;
-        font-weight: 800;
+        background: #4361ee;
+        color: #ffffff;
+        font-weight: 700;
         border-radius: 8px;
         padding: 0.75rem 1.5rem;
         border: none;
-        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.3);
-        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(67, 97, 238, 0.35);
+        transition: all 0.2s;
     }
-    
+
     .stButton > button:hover {
-        box-shadow: 0 6px 25px rgba(0, 255, 133, 0.5);
+        background: #5a75f0;
+        box-shadow: 0 6px 22px rgba(67, 97, 238, 0.5);
         transform: translateY(-2px);
     }
-    
-    /* Match Cards with Logos */
+
+    /* ── Match Cards ── */
     .match-card {
-        background: #1a1a1a;
-        border-radius: 12px;
-        padding: 1.2rem;
-        margin-bottom: 1rem;
-        border-left: 3px solid #00ff85;
+        background: #131929;
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 0.75rem;
+        border-left: 3px solid #4361ee;
         display: grid;
         grid-template-columns: 1fr auto 1fr;
         align-items: center;
         gap: 1.5rem;
-        box-shadow: 0 2px 10px rgba(0, 255, 133, 0.1);
-        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        transition: all 0.2s;
     }
-    
+
     .match-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 20px rgba(0, 255, 133, 0.2);
+        transform: translateX(4px);
+        background: #1a2237;
+        box-shadow: 0 4px 16px rgba(67, 97, 238, 0.15);
     }
-    
+
     .match-team {
         display: flex;
         align-items: center;
         gap: 0.75rem;
         font-weight: 600;
         font-size: 0.95rem;
-        color: #fff;
+        color: #e2e8f0;
     }
-    
-    .match-team.home {
-        justify-content: flex-end;
-    }
-    
-    .match-team.away {
-        justify-content: flex-start;
-    }
-    
+
+    .match-team.home { justify-content: flex-end; }
+    .match-team.away { justify-content: flex-start; }
+
     .match-card .score {
-        background: linear-gradient(135deg, #00ff85, #00d4ff);
-        color: #000;
+        background: #1e2a3a;
+        color: #f0f4ff;
         font-weight: 900;
-        font-size: 1.3rem;
-        padding: 0.5rem 1.2rem;
+        font-size: 1.2rem;
+        padding: 0.5rem 1rem;
         border-radius: 8px;
         letter-spacing: 3px;
-        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.3);
+        border: 1px solid #2d3748;
+        min-width: 80px;
+        text-align: center;
     }
-    
-    .match-card .winner {
-        color: #00ff85;
-        text-shadow: 0 0 10px rgba(0, 255, 133, 0.5);
-    }
-    
+
+    .match-card .winner { color: #10b981; }
+
     .match-date {
-        font-size: 0.75rem;
-        color: #666;
-        margin-bottom: 0.5rem;
+        font-size: 0.72rem;
+        color: #4a5568;
+        margin-bottom: 0.4rem;
         text-transform: uppercase;
         letter-spacing: 1px;
         font-weight: 600;
     }
-    
-    /* Team selector with logo */
+
+    /* ── Team logo display ── */
     .team-logo-display {
         margin-top: 0.5rem;
         text-align: center;
     }
-    
-    /* Stat Cards */
+
+    /* ── Stat Cards ── */
     .stat-card {
-        background: #1a1a1a;
+        background: #131929;
         border-radius: 12px;
         padding: 1.5rem 1rem;
         text-align: center;
-        border-top: 3px solid #00ff85;
-        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.1);
+        border-top: 2px solid #4361ee;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
-    
+
     .stat-card .value {
         font-size: 2.5rem;
         font-weight: 900;
-        background: linear-gradient(135deg, #00ff85, #00d4ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #7b8ff7;
         line-height: 1;
     }
-    
+
     .stat-card .label {
-        font-size: 0.75rem;
-        color: #666;
+        font-size: 0.72rem;
+        color: #4a5568;
         margin-top: 0.75rem;
         text-transform: uppercase;
         font-weight: 700;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
     }
-    
-    /* Coaster Cards */
+
+    /* ── Coaster Cards ── */
     .coaster-card {
-        background: #1a1a1a;
-        border-radius: 12px;
-        padding: 1.25rem 1.5rem;
-        margin-bottom: 0.75rem;
-        border-left: 4px solid #333;
-        transition: all 0.3s;
+        background: #131929;
+        border-radius: 10px;
+        padding: 1.1rem 1.5rem;
+        margin-bottom: 0.625rem;
+        border-left: 3px solid #2d3748;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
-    
-    .coaster-card:hover {
-        transform: translateX(5px);
-    }
-    
+
+    .coaster-card:hover { transform: translateX(4px); background: #1a2237; }
+
     .coaster-card.winner {
-        border-left-color: #00ff85;
-        background: linear-gradient(90deg, rgba(0,255,135,0.1), #1a1a1a);
-        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.15);
+        border-left-color: #f59e0b;
+        background: linear-gradient(90deg, rgba(245,158,11,0.08), #131929);
     }
-    
+
     .coaster-card h4 {
-        margin: 0 0 0.5rem 0;
-        font-size: 1.1rem;
+        margin: 0 0 0.4rem 0;
+        font-size: 1rem;
         font-weight: 700;
-        color: #fff;
+        color: #f0f4ff;
     }
-    
-    .coaster-card .location {
-        color: #666;
-        font-size: 0.85rem;
-    }
-    
-    /* Charter */
+
+    .coaster-card .location { color: #4a5568; font-size: 0.82rem; }
+
+    /* ── Charter ── */
     .charter-content {
-        background: #1a1a1a;
+        background: #131929;
         border-radius: 12px;
         padding: 2rem;
         line-height: 1.8;
-        color: #ccc;
-        box-shadow: 0 4px 15px rgba(0, 255, 133, 0.1);
+        color: #8b96b0;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
-    
+
+    /* ── Record Card ── */
     .record-card {
-        background: #1a1a1a;
+        background: #131929;
         border-radius: 12px;
         padding: 2rem;
-        box-shadow: 0 4px 20px rgba(0, 255, 133, 0.15);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
-    
+
     .vs-divider {
         text-align: center;
-        font-size: 1.8rem;
+        font-size: 1.5rem;
         font-weight: 900;
-        color: #333;
+        color: #2d3748;
         margin: 1rem 0;
         letter-spacing: 4px;
     }
+
+    /* ── H2H Table ── */
+    .h2h-wrapper {
+        background: #131929;
+        border-radius: 12px;
+        overflow-x: auto;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .h2h-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .h2h-table thead { background: #0c111d; }
+
+    .h2h-table th {
+        padding: 0.875rem 1rem;
+        text-align: left;
+        font-weight: 700;
+        font-size: 0.68rem;
+        color: #8b96b0;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        border-bottom: 1px solid #1e2a3a;
+    }
+
+    .h2h-table th:nth-child(2) { text-align: center; }
+    .h2h-table th:nth-child(3),
+    .h2h-table th:nth-child(4),
+    .h2h-table th:nth-child(5) { text-align: center; width: 60px; }
+
+    .h2h-table tbody tr { border-bottom: 1px solid #1e2a3a; }
+    .h2h-table tbody tr:hover { background: rgba(67, 97, 238, 0.06); }
+
+    .h2h-table td {
+        padding: 0.875rem 1rem;
+        font-size: 0.9rem;
+        color: #e2e8f0;
+        font-weight: 500;
+    }
+
+    .h2h-table td:nth-child(2) { text-align: center; }
+    .h2h-table td:nth-child(3),
+    .h2h-table td:nth-child(4),
+    .h2h-table td:nth-child(5) { text-align: center; font-weight: 700; }
+
+    .h2h-w { color: #10b981; }
+    .h2h-l { color: #f43f5e; }
+    .h2h-none { color: #4a5568; font-style: italic; font-size: 0.82rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -654,7 +675,8 @@ st.markdown("""
 st.markdown("""
 <div class="spbl-header">
     <div class="header-content">
-        <div class="header-title">SLAYER PARK BINHO LEAGUE</div>
+        <div class="header-title">Slayer Park Binho League</div>
+        <div class="header-subtitle">Official League Management System</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -696,6 +718,17 @@ with tab1:
         st.info("No matches recorded yet. Record your first match to see the table.")
     else:
         # Build Premier League style table with logos using st.components.v1.html
+        def form_badges_html(form_str):
+            badges = ""
+            for ch in form_str:
+                if ch == "W":
+                    badges += '<span class="fb fb-w">W</span>'
+                elif ch == "L":
+                    badges += '<span class="fb fb-l">L</span>'
+                elif ch == "D":
+                    badges += '<span class="fb fb-d">D</span>'
+            return badges or "—"
+
         rows_html = ""
         for idx, row in df.iterrows():
             rank = idx + 1
@@ -704,7 +737,7 @@ with tab1:
                 rank_class = "rank-1"
             elif rank == len(df):
                 rank_class = "rank-last"
-            
+
             gd = row['GD']
             if gd > 0:
                 gd_class = "gd-positive"
@@ -715,9 +748,10 @@ with tab1:
             else:
                 gd_class = "gd-neutral"
                 gd_text = "0"
-            
-            logo_html = get_team_logo_img(row['Owner'], 44)
-            
+
+            logo_html = get_team_logo_img(row['Owner'], 40)
+            form_html = form_badges_html(row['Last 5'])
+
             rows_html += f"""
             <tr class="{rank_class}">
                 <td>{rank}</td>
@@ -732,90 +766,69 @@ with tab1:
                 <td>{row['GA']}</td>
                 <td><span class="{gd_class}">{gd_text}</span></td>
                 <td class="pts-col">{row['Pts']}</td>
-                <td>{row['Last 5']}</td>
+                <td>{form_html}</td>
             </tr>
             """
-        
+
         table_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <style>
-                body {{ margin: 0; padding: 0; background: transparent; }}
+                body {{ margin: 0; padding: 0; background: transparent; font-family: 'Inter', sans-serif; }}
                 .pl-table-wrapper {{
-                    background: #1a1a1a;
+                    background: #131929;
                     border-radius: 12px;
                     overflow-x: auto;
-                    box-shadow: 0 4px 20px rgba(0, 255, 133, 0.1);
+                    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
                 }}
                 .pl-table {{
                     width: 100%;
                     min-width: 800px;
                     border-collapse: collapse;
-                    font-family: 'Inter', sans-serif;
                 }}
-                .pl-table thead {{
-                    background: #0d0d0d;
-                }}
+                .pl-table thead {{ background: #0c111d; }}
                 .pl-table th {{
-                    padding: 1rem 0.75rem;
+                    padding: 0.875rem 0.75rem;
                     text-align: center;
-                    font-weight: 800;
-                    font-size: 0.7rem;
-                    color: #00ff85;
+                    font-weight: 700;
+                    font-size: 0.68rem;
+                    color: #8b96b0;
                     text-transform: uppercase;
-                    letter-spacing: 1px;
-                    border-bottom: 2px solid #00ff85;
+                    letter-spacing: 1.5px;
+                    border-bottom: 1px solid #1e2a3a;
                 }}
                 .pl-table th:first-child {{ text-align: center; width: 50px; }}
                 .pl-table th:nth-child(2) {{ width: 60px; }}
                 .pl-table th:nth-child(3) {{ text-align: left; padding-left: 1rem; }}
-                .pl-table tbody tr {{
-                    border-bottom: 1px solid #2a2a2a;
-                    transition: background 0.2s;
-                }}
-                .pl-table tbody tr:hover {{
-                    background: #222;
-                    box-shadow: inset 0 0 20px rgba(0, 255, 133, 0.1);
-                }}
-                .pl-table tbody tr.rank-1 {{
-                    border-left: 4px solid #00ff85;
-                    box-shadow: inset 0 0 30px rgba(0, 255, 133, 0.15);
-                }}
-                .pl-table tbody tr.rank-last {{
-                    border-left: 4px solid #ff4458;
-                    box-shadow: inset 0 0 30px rgba(255, 68, 88, 0.15);
-                }}
+                .pl-table tbody tr {{ border-bottom: 1px solid #1e2a3a; }}
+                .pl-table tbody tr:hover {{ background: rgba(67,97,238,0.06); }}
+                .pl-table tbody tr.rank-1  {{ border-left: 3px solid #10b981; }}
+                .pl-table tbody tr.rank-last {{ border-left: 3px solid #f43f5e; }}
                 .pl-table td {{
-                    padding: 1.2rem 0.75rem;
+                    padding: 1rem 0.75rem;
                     text-align: center;
                     font-size: 0.9rem;
-                    color: #fff;
+                    color: #e2e8f0;
                     font-weight: 500;
-                    background: #1a1a1a;
+                    background: #131929;
                 }}
-                .pl-table td:first-child {{
-                    color: #666;
-                    font-weight: 700;
-                    font-size: 0.85rem;
-                }}
+                .pl-table td:first-child {{ color: #4a5568; font-weight: 700; font-size: 0.85rem; }}
                 .pl-table td:nth-child(2) {{ text-align: center; }}
-                .pl-table td:nth-child(3) {{
-                    text-align: left;
-                    padding-left: 1rem;
-                    font-weight: 600;
+                .pl-table td:nth-child(3) {{ text-align: left; padding-left: 1rem; font-weight: 700; color: #f0f4ff; }}
+                .pl-table td:nth-child(4) {{ text-align: left; color: #4a5568; font-size: 0.82rem; }}
+                .pl-table .pts-col {{ font-weight: 800; color: #f0f4ff; font-size: 1rem; }}
+                .gd-positive {{ color: #10b981; font-weight: 700; }}
+                .gd-negative {{ color: #f43f5e; font-weight: 700; }}
+                .gd-neutral  {{ color: #4a5568; font-weight: 600; }}
+                .fb {{
+                    display: inline-flex; align-items: center; justify-content: center;
+                    width: 22px; height: 22px; border-radius: 4px;
+                    font-size: 0.65rem; font-weight: 800; margin: 0 1px; color: #fff;
                 }}
-                .pl-table td:nth-child(4) {{
-                    text-align: left;
-                    color: #999;
-                }}
-                .pl-table .pts-col {{
-                    font-weight: 700;
-                    color: #fff;
-                }}
-                .gd-positive {{ color: #00ff85; font-weight: 700; }}
-                .gd-negative {{ color: #ff4458; font-weight: 700; }}
-                .gd-neutral {{ color: #666; font-weight: 600; }}
+                .fb-w {{ background: #10b981; }}
+                .fb-d {{ background: #f59e0b; }}
+                .fb-l {{ background: #f43f5e; }}
             </style>
         </head>
         <body>
@@ -835,7 +848,7 @@ with tab1:
                             <th>GA</th>
                             <th>GD</th>
                             <th>Pts</th>
-                            <th>Last 5</th>
+                            <th>Form</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1085,15 +1098,15 @@ with tab4:
                     away_owner = g["away"]
                     home_club = teams[home_owner]["club_name"]
                     away_club = teams[away_owner]["club_name"]
-                    
+
                     winner = home_owner if g["home_score"] > g["away_score"] else away_owner
-                    
+
                     home_class = "winner" if home_owner == winner else ""
                     away_class = "winner" if away_owner == winner else ""
-                    
+
                     home_logo = get_team_logo_img(home_owner, 44)
                     away_logo = get_team_logo_img(away_owner, 44)
-                    
+
                     st.markdown(f"""
                     <div class="match-date">{g["date"]}</div>
                     <div class="match-card">
@@ -1108,6 +1121,156 @@ with tab4:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+
+            # ── Head-to-Head Table ────────────────────────────────────────────
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("#### Head-to-Head Record")
+
+            opponents = sorted(
+                [t for t in teams.keys() if t != selected],
+                key=lambda x: teams[x]['club_name']
+            )
+
+            h2h_rows = ""
+            for opp in opponents:
+                h2h_games = [
+                    g for g in games if
+                    (g["home"] == selected and g["away"] == opp) or
+                    (g["away"] == selected and g["home"] == opp)
+                ]
+
+                opp_logo = get_team_logo_img(opp, 28)
+                opp_club = teams[opp]['club_name']
+
+                if not h2h_games:
+                    results_html = '<span class="h2h-none">No matches yet</span>'
+                    w_text = "–"
+                    l_text = "–"
+                    gd_text = "–"
+                    gd_class = ""
+                else:
+                    results_html = ""
+                    w_count = 0
+                    l_count = 0
+                    gd = 0
+
+                    for g in h2h_games:
+                        if g["home"] == selected:
+                            scored, conceded = g["home_score"], g["away_score"]
+                        else:
+                            scored, conceded = g["away_score"], g["home_score"]
+
+                        gd += scored - conceded
+                        if scored > conceded:
+                            results_html += '<span class="fb fb-w">W</span>'
+                            w_count += 1
+                        else:
+                            results_html += '<span class="fb fb-l">L</span>'
+                            l_count += 1
+
+                    w_text = str(w_count)
+                    l_text = str(l_count)
+                    if gd > 0:
+                        gd_text = f"+{gd}"
+                        gd_class = "h2h-w"
+                    elif gd < 0:
+                        gd_text = str(gd)
+                        gd_class = "h2h-l"
+                    else:
+                        gd_text = "0"
+                        gd_class = ""
+
+                h2h_rows += f"""
+                <tr>
+                    <td>
+                        <span style="display:flex;align-items:center;gap:0.6rem;">
+                            {opp_logo}
+                            <span style="font-weight:600;color:#f0f4ff;">{opp_club}</span>
+                        </span>
+                    </td>
+                    <td>{results_html}</td>
+                    <td class="h2h-w">{w_text}</td>
+                    <td class="h2h-l">{l_text}</td>
+                    <td class="{gd_class}">{gd_text}</td>
+                </tr>
+                """
+
+            h2h_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ margin: 0; padding: 0; background: transparent; font-family: 'Inter', sans-serif; }}
+                    .h2h-wrapper {{
+                        background: #131929;
+                        border-radius: 12px;
+                        overflow-x: auto;
+                        box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+                    }}
+                    .h2h-table {{ width: 100%; border-collapse: collapse; }}
+                    .h2h-table thead {{ background: #0c111d; }}
+                    .h2h-table th {{
+                        padding: 0.75rem 1rem;
+                        text-align: left;
+                        font-weight: 700;
+                        font-size: 0.68rem;
+                        color: #8b96b0;
+                        text-transform: uppercase;
+                        letter-spacing: 1.5px;
+                        border-bottom: 1px solid #1e2a3a;
+                    }}
+                    .h2h-table th:nth-child(2) {{ text-align: center; }}
+                    .h2h-table th:nth-child(3),
+                    .h2h-table th:nth-child(4),
+                    .h2h-table th:nth-child(5) {{ text-align: center; width: 55px; }}
+                    .h2h-table tbody tr {{ border-bottom: 1px solid #1e2a3a; }}
+                    .h2h-table tbody tr:hover {{ background: rgba(67,97,238,0.06); }}
+                    .h2h-table td {{
+                        padding: 0.75rem 1rem;
+                        font-size: 0.88rem;
+                        color: #e2e8f0;
+                        font-weight: 500;
+                        background: #131929;
+                    }}
+                    .h2h-table td:nth-child(2) {{ text-align: center; }}
+                    .h2h-table td:nth-child(3),
+                    .h2h-table td:nth-child(4),
+                    .h2h-table td:nth-child(5) {{ text-align: center; font-weight: 700; }}
+                    .fb {{
+                        display: inline-flex; align-items: center; justify-content: center;
+                        width: 24px; height: 24px; border-radius: 4px;
+                        font-size: 0.68rem; font-weight: 800; margin: 0 2px; color: #fff;
+                    }}
+                    .fb-w {{ background: #10b981; }}
+                    .fb-l {{ background: #f43f5e; }}
+                    .h2h-w {{ color: #10b981; }}
+                    .h2h-l {{ color: #f43f5e; }}
+                    .h2h-none {{ color: #4a5568; font-style: italic; font-size: 0.82rem; }}
+                </style>
+            </head>
+            <body>
+                <div class="h2h-wrapper">
+                    <table class="h2h-table">
+                        <thead>
+                            <tr>
+                                <th>Opponent</th>
+                                <th>Results</th>
+                                <th>W</th>
+                                <th>L</th>
+                                <th>GD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {h2h_rows}
+                        </tbody>
+                    </table>
+                </div>
+            </body>
+            </html>
+            """
+
+            h2h_height = max(220, 55 + len(opponents) * 55)
+            st.components.v1.html(h2h_html, height=h2h_height, scrolling=False)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 5 — COASTER CUPS
