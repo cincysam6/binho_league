@@ -116,13 +116,14 @@ def delete_game(game_id):
     """Delete a game from Supabase"""
     supabase.table("games").delete().eq("id", game_id).execute()
 
-def add_coaster_cup(month, winner, location, date):
+def add_coaster_cup(month, winner, location, date, cup_name=""):
     """Add a coaster cup to Supabase"""
     data = {
         "month": month,
         "winner": winner,
         "location": location,
-        "date": str(date)
+        "date": str(date),
+        "cup_name": cup_name
     }
     supabase.table("coaster_cups").insert(data).execute()
 
@@ -944,42 +945,41 @@ with tab2:
 # ══════════════════════════════════════════════════════════════════════════════
 with tab3:
     st.markdown("### Match Results")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        filter_phase = st.selectbox("Filter by Phase", ["All Matches", "Apertura", "Clausura"])
-    with col2:
-        if games:
-            if st.button("🗑️ Delete", use_container_width=True):
-                st.session_state.show_delete_confirm = True
-    
-    if "show_delete_confirm" in st.session_state and st.session_state.show_delete_confirm:
-        with st.form("delete_match_form"):
-            st.warning("⚠️ Enter passcode to delete a match")
-            passcode = st.text_input("Passcode", type="password")
-            match_options = [f"ID {g['id']}: {g['date']} - {teams[g['home']]['club_name']} {g['home_score']}-{g['away_score']} {teams[g['away']]['club_name']}" for g in reversed(games)]
-            match_to_delete = st.selectbox("Select match to delete", match_options)
-            
-            col_a, col_b = st.columns(2)
-            with col_a:
-                if st.form_submit_button("Confirm Delete", use_container_width=True):
-                    if passcode == ADMIN_PASSWORD:
-                        game_id = int(match_to_delete.split(":")[0].replace("ID ", ""))
-                        delete_game(game_id)
-                        st.session_state.show_delete_confirm = False
-                        st.success("Match deleted!")
+
+    filter_phase = st.selectbox("Filter by Phase", ["All Matches", "Apertura", "Clausura"])
+
+    # Pending delete confirmation — shown at top before the game list
+    if st.session_state.get("pending_delete_id"):
+        gid = st.session_state.pending_delete_id
+        g_del = next((g for g in games if g["id"] == gid), None)
+        if g_del:
+            home_club = teams[g_del["home"]]["club_name"]
+            away_club = teams[g_del["away"]]["club_name"]
+            with st.form("confirm_delete_form"):
+                st.warning(
+                    f"Delete: **{home_club}** {g_del['home_score']}–{g_del['away_score']} "
+                    f"**{away_club}** ({g_del['date']})"
+                )
+                passcode = st.text_input("Enter admin passcode", type="password")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if st.form_submit_button("Confirm Delete", use_container_width=True):
+                        if passcode == ADMIN_PASSWORD:
+                            delete_game(gid)
+                            st.session_state.pending_delete_id = None
+                            st.success("Match deleted!")
+                            st.rerun()
+                        else:
+                            st.error("Incorrect passcode!")
+                with col_b:
+                    if st.form_submit_button("Cancel", use_container_width=True):
+                        st.session_state.pending_delete_id = None
                         st.rerun()
-                    else:
-                        st.error("Incorrect passcode!")
-            with col_b:
-                if st.form_submit_button("Cancel", use_container_width=True):
-                    st.session_state.show_delete_confirm = False
-                    st.rerun()
-    
+
     filtered_games = games
     if filter_phase != "All Matches":
         filtered_games = [g for g in games if g.get("phase") == filter_phase]
-    
+
     if not filtered_games:
         st.info("No matches recorded yet.")
     else:
@@ -988,29 +988,37 @@ with tab3:
             away_owner = g["away"]
             home_club = teams[home_owner]["club_name"]
             away_club = teams[away_owner]["club_name"]
-            
+
             winner = home_owner if g["home_score"] > g["away_score"] else away_owner
-            
+
             home_class = "winner" if home_owner == winner else ""
             away_class = "winner" if away_owner == winner else ""
-            
+
             home_logo = get_team_logo_img(home_owner, 44)
             away_logo = get_team_logo_img(away_owner, 44)
-            
-            st.markdown(f"""
-            <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
-            <div class="match-card">
-                <div class="match-team home {home_class}">
-                    <span>{home_club}</span>
-                    {home_logo}
+
+            col_card, col_del = st.columns([11, 1])
+            with col_card:
+                st.markdown(f"""
+                <div class="match-date">{g["date"]} • {g.get("phase", "N/A")}</div>
+                <div class="match-card">
+                    <div class="match-team home {home_class}">
+                        <span>{home_club}</span>
+                        {home_logo}
+                    </div>
+                    <div class="score">{g["home_score"]} – {g["away_score"]}</div>
+                    <div class="match-team away {away_class}">
+                        {away_logo}
+                        <span>{away_club}</span>
+                    </div>
                 </div>
-                <div class="score">{g["home_score"]} – {g["away_score"]}</div>
-                <div class="match-team away {away_class}">
-                    {away_logo}
-                    <span>{away_club}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+            with col_del:
+                st.markdown("<div style='padding-top:1.6rem;'>", unsafe_allow_html=True)
+                if st.button("🗑️", key=f"del_{g['id']}", help="Delete this match"):
+                    st.session_state.pending_delete_id = g["id"]
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 4 — TEAM STATS
@@ -1089,8 +1097,41 @@ with tab4:
                 </div>
                 """, unsafe_allow_html=True)
             
+            # ── Cup Trophies ──────────────────────────────────────────────────
+            team_cups = [c for c in coaster_cups if c["winner"] == selected]
+            if team_cups:
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("#### Cup Trophies")
+                cups_html = '<div style="display:flex;flex-wrap:wrap;gap:0.875rem;padding:0.5rem 0;">'
+                for cup in team_cups:
+                    cup_label = cup.get("cup_name") or f"{cup['month']} Cup"
+                    cups_html += f"""
+                    <div style="
+                        text-align:center;
+                        background:#131929;
+                        border-radius:10px;
+                        padding:1rem 0.875rem;
+                        min-width:90px;
+                        max-width:120px;
+                        border-top:2px solid #f59e0b;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.25);
+                    ">
+                        <div style="font-size:1.8rem;">🏆</div>
+                        <div style="
+                            font-size:0.68rem;
+                            color:#f59e0b;
+                            font-weight:700;
+                            margin-top:0.4rem;
+                            line-height:1.3;
+                            word-break:break-word;
+                        ">{cup_label}</div>
+                    </div>
+                    """
+                cups_html += '</div>'
+                st.markdown(cups_html, unsafe_allow_html=True)
+
             st.markdown("<br>", unsafe_allow_html=True)
-            
+
             if team_games:
                 st.markdown("#### Recent Results")
                 for g in reversed(team_games[-5:]):
@@ -1287,52 +1328,66 @@ with tab5:
     
     with st.expander("➕ Record Coaster Cup Winner", expanded=len(coaster_cups) == 0):
         with st.form("add_coaster_cup"):
+            cup_name = st.text_input("Cup Name", placeholder="e.g. The Golden Pint Cup")
+
             cup_month = st.selectbox("Month", [
                 "January", "February", "March", "April", "May", "June",
                 "July", "August", "September", "October", "November", "December"
             ])
-            
+
             cup_winner = st.selectbox("Winner", list(teams.keys()),
                 format_func=lambda x: f"{teams[x]['club_name']} ({x})")
-            
+
             cup_location = st.selectbox("Location", [
                 "13 Below Brewery",
                 "West Side Brewery",
                 "Other"
             ])
-            
+
             if st.form_submit_button("Record Coaster Cup", use_container_width=True):
-                add_coaster_cup(cup_month, cup_winner, cup_location, datetime.today().date())
-                st.success(f"✓ {cup_month} Coaster Cup recorded: **{teams[cup_winner]['club_name']}** wins!")
+                add_coaster_cup(cup_month, cup_winner, cup_location, datetime.today().date(), cup_name.strip())
+                label = cup_name.strip() or f"{cup_month} Cup"
+                st.success(f"✓ **{label}** recorded: **{teams[cup_winner]['club_name']}** wins!")
                 st.rerun()
-    
+
     if coaster_cups:
         cup_wins = {}
         for cup in coaster_cups:
             winner = cup["winner"]
             cup_wins[winner] = cup_wins.get(winner, 0) + 1
-        
+
         st.markdown("#### Coaster Cup Leaderboard")
         sorted_winners = sorted(cup_wins.items(), key=lambda x: x[1], reverse=True)
-        
+
         for i, (winner, wins) in enumerate(sorted_winners, 1):
             badge = "🏆" if i == 1 else f"{i}."
             club_name = teams[winner]["club_name"]
+            logo_html = get_team_logo_img(winner, 40)
             st.markdown(f"""
             <div class="coaster-card {'winner' if i == 1 else ''}">
-                <h4>{badge} {club_name} — {wins} Cup{"s" if wins != 1 else ""}</h4>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    {logo_html}
+                    <h4 style="margin:0;">{badge} {club_name} — {wins} Cup{"s" if wins != 1 else ""}</h4>
+                </div>
             </div>
             """, unsafe_allow_html=True)
-        
+
         st.markdown("<br>", unsafe_allow_html=True)
-        
+
         st.markdown("#### All Coaster Cups")
         for cup in reversed(coaster_cups):
             club_name = teams[cup["winner"]]["club_name"]
+            logo_html = get_team_logo_img(cup["winner"], 40)
+            cup_label = cup.get("cup_name") or f"{cup['month']} Cup"
             st.markdown(f"""
             <div class="coaster-card winner">
-                <h4>{cup["month"]} — {club_name}</h4>
-                <div class="location">📍 {cup["location"]} • {cup["date"]}</div>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    {logo_html}
+                    <div>
+                        <h4 style="margin:0 0 0.25rem 0;">🏆 {cup_label}</h4>
+                        <div class="location">📍 {cup["location"]} • {cup["date"]}</div>
+                    </div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
     else:
