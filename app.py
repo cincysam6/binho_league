@@ -1102,10 +1102,10 @@ with tab4:
             if team_cups:
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown("#### Cup Trophies")
-                cups_html = '<div style="display:flex;flex-wrap:wrap;gap:0.875rem;padding:0.5rem 0;">'
+                trophy_cards = ""
                 for cup in team_cups:
                     cup_label = cup.get("cup_name") or f"{cup['month']} Cup"
-                    cups_html += f"""
+                    trophy_cards += f"""
                     <div style="
                         text-align:center;
                         background:#131929;
@@ -1115,8 +1115,9 @@ with tab4:
                         max-width:120px;
                         border-top:2px solid #f59e0b;
                         box-shadow:0 2px 8px rgba(0,0,0,0.25);
+                        font-family:'Inter',sans-serif;
                     ">
-                        <div style="font-size:1.8rem;">🏆</div>
+                        <div style="font-size:1.8rem;">&#127942;</div>
                         <div style="
                             font-size:0.68rem;
                             color:#f59e0b;
@@ -1127,8 +1128,17 @@ with tab4:
                         ">{cup_label}</div>
                     </div>
                     """
-                cups_html += '</div>'
-                st.markdown(cups_html, unsafe_allow_html=True)
+                cups_component = f"""
+                <!DOCTYPE html><html><head>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet">
+                </head><body style="margin:0;padding:0;background:transparent;">
+                <div style="display:flex;flex-wrap:wrap;gap:0.875rem;padding:0.25rem 0;">
+                    {trophy_cards}
+                </div>
+                </body></html>
+                """
+                trophy_rows = max(1, -(-len(team_cups) // 6))
+                st.components.v1.html(cups_component, height=trophy_rows * 110, scrolling=False)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
